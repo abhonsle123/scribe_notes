@@ -41,12 +41,12 @@ const DashboardLayout = () => {
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           {sidebarOpen && (
-            <div className="flex items-center space-x-2">
+            <Link to="/" className="flex items-center space-x-2">
               <div className="bg-blue-600 p-2 rounded-lg">
                 <FileText className="h-5 w-5 text-white" />
               </div>
               <span className="text-lg font-semibold text-gray-900">Liaise</span>
-            </div>
+            </Link>
           )}
           <Button
             variant="ghost"
