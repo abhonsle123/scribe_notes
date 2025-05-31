@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Upload,
   FileText,
@@ -24,6 +26,13 @@ const NewSummary = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isProcessed, setIsProcessed] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [generatedSummary, setGeneratedSummary] = useState("");
+  const [summaryDetails, setSummaryDetails] = useState({
+    processingTime: "",
+    readabilityScore: "",
+    wordCount: 0
+  });
+  const { toast } = useToast();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -88,50 +97,89 @@ const NewSummary = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const handleGenerateSummary = async () => {
-    setIsProcessing(true);
-    // Simulate processing time
-    setTimeout(() => {
-      setIsProcessing(false);
-      setIsProcessed(true);
-    }, 3000);
+  const extractTextFromFile = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const text = e.target?.result as string;
+        // For now, we'll use the file content as-is for text files
+        // In a production app, you'd want proper PDF/DOC parsing
+        resolve(text || `[Content from ${file.name}]`);
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+      reader.readAsText(file);
+    });
   };
 
-  const mockSummary = `
-  Dear John,
+  const handleGenerateSummary = async () => {
+    if (files.length === 0) {
+      toast({
+        title: "No files uploaded",
+        description: "Please upload at least one file to generate a summary.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-  Thank you for your recent visit to City General Hospital. Here's a simple explanation of your care and what happens next:
+    setIsProcessing(true);
+    
+    try {
+      // Extract text from all files
+      let combinedText = "";
+      for (const file of files) {
+        try {
+          const fileText = await extractTextFromFile(file);
+          combinedText += `\n\n--- Content from ${file.name} ---\n${fileText}`;
+        } catch (error) {
+          console.error(`Error reading file ${file.name}:`, error);
+          combinedText += `\n\n--- ${file.name} (could not read content) ---\n`;
+        }
+      }
 
-  **Why you came to the hospital:**
-  You came in because you were having chest pain and trouble breathing.
+      if (!combinedText.trim()) {
+        throw new Error("No readable content found in the uploaded files");
+      }
 
-  **What we found:**
-  Our tests showed that you had a minor heart attack. This happens when one of the blood vessels to your heart gets blocked.
+      // Call the Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('convert-to-patient-friendly', {
+        body: {
+          medicalText: combinedText,
+          additionalNotes: notes
+        }
+      });
 
-  **What we did to help:**
-  - We gave you medicine to help your heart and prevent blood clots
-  - We did a procedure to open the blocked blood vessel
-  - We monitored your heart for 3 days to make sure you were getting better
+      if (error) {
+        throw error;
+      }
 
-  **How you're doing now:**
-  Your heart is working much better now. Your tests before leaving showed good improvement.
+      if (data.error) {
+        throw new Error(data.error);
+      }
 
-  **What you need to do at home:**
-  - Take your new heart medicines exactly as prescribed
-  - Rest for the first week, then slowly increase your activity
-  - Come back if you have chest pain, shortness of breath, or feel dizzy
-  - Follow up with Dr. Smith in 1 week
+      setGeneratedSummary(data.summary);
+      setSummaryDetails({
+        processingTime: data.processingTime,
+        readabilityScore: data.readabilityScore,
+        wordCount: data.wordCount
+      });
+      setIsProcessed(true);
 
-  **Important medicines to take:**
-  - Aspirin 81mg once daily
-  - Metoprolol 50mg twice daily
-  - Atorvastatin 40mg once daily at bedtime
+      toast({
+        title: "Summary Generated",
+        description: "Your patient-friendly summary has been created successfully.",
+      });
 
-  If you have any questions or concerns, please call us at (555) 123-4567.
-
-  Take care,
-  The Care Team at City General Hospital
-  `;
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      toast({
+        title: "Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate summary. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   if (isProcessed) {
     return (
@@ -164,7 +212,7 @@ const NewSummary = () => {
                 <div className="bg-gray-50 p-6 rounded-lg">
                   <div className="prose max-w-none">
                     <div className="whitespace-pre-line text-gray-800">
-                      {mockSummary}
+                      {generatedSummary}
                     </div>
                   </div>
                 </div>
@@ -212,15 +260,15 @@ const NewSummary = () => {
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Processing Time:</span>
-                  <span className="font-medium">2.3 minutes</span>
+                  <span className="font-medium">{summaryDetails.processingTime}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Readability Score:</span>
-                  <span className="font-medium">Grade 8 Level</span>
+                  <span className="font-medium">{summaryDetails.readabilityScore}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Word Count:</span>
-                  <span className="font-medium">287 words</span>
+                  <span className="font-medium">{summaryDetails.wordCount} words</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Status:</span>
@@ -400,7 +448,7 @@ const NewSummary = () => {
             <CardContent className="space-y-4">
               <Button
                 onClick={handleGenerateSummary}
-                disabled={files.length === 0}
+                disabled={files.length === 0 || isProcessing}
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 size="lg"
               >
