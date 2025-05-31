@@ -1,11 +1,13 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Menu, X } from "lucide-react";
+import { FileText, Menu, X, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { user, signOut } = useAuth();
 
   const navigation = [
     { name: "Home", href: "/" },
@@ -14,6 +16,10 @@ const Header = () => {
     { name: "FAQs", href: "/faqs" },
     { name: "About", href: "/about" },
   ];
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -38,9 +44,29 @@ const Header = () => {
                 {item.name}
               </Link>
             ))}
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              Log In
-            </Button>
+            
+            {user ? (
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">
+                  Welcome, {user.email}
+                </span>
+                <Button 
+                  onClick={handleSignOut}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center space-x-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </Button>
+              </div>
+            ) : (
+              <Link to="/login">
+                <Button className="bg-blue-600 hover:bg-blue-700">
+                  Log In
+                </Button>
+              </Link>
+            )}
           </nav>
 
           {/* Mobile menu button */}
@@ -68,11 +94,31 @@ const Header = () => {
                   {item.name}
                 </Link>
               ))}
-              <div className="px-3 py-2">
-                <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                  Log In
-                </Button>
-              </div>
+              
+              {user ? (
+                <div className="px-3 py-2 space-y-2">
+                  <div className="text-sm text-gray-600">
+                    Welcome, {user.email}
+                  </div>
+                  <Button 
+                    onClick={handleSignOut}
+                    variant="outline"
+                    size="sm"
+                    className="w-full flex items-center justify-center space-x-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Sign Out</span>
+                  </Button>
+                </div>
+              ) : (
+                <div className="px-3 py-2">
+                  <Link to="/login">
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                      Log In
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}
