@@ -12,7 +12,7 @@ const Footer = () => {
               <div className="bg-blue-600 p-2 rounded-lg">
                 <FileText className="h-6 w-6 text-white" />
               </div>
-              <h3 className="text-xl font-bold">MedSimplify</h3>
+              <h3 className="text-xl font-bold">Liaise</h3>
             </div>
             <p className="text-gray-300 mb-4">
               Transforming complex medical reports into clear, patient-friendly summaries 
@@ -30,7 +30,7 @@ const Footer = () => {
             <div className="space-y-3">
               <div className="flex items-center space-x-3">
                 <Mail className="h-5 w-5 text-blue-400" />
-                <span className="text-gray-300">support@medsimplify.com</span>
+                <span className="text-gray-300">support@liaise.com</span>
               </div>
               <div className="flex items-center space-x-3">
                 <Phone className="h-5 w-5 text-blue-400" />
@@ -65,7 +65,7 @@ const Footer = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center">
           <p className="text-gray-400">
-            © 2024 MedSimplify. All rights reserved.
+            © 2024 Liaise. All rights reserved.
           </p>
         </div>
       </div>

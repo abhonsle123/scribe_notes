@@ -24,7 +24,7 @@ const Header = () => {
             <div className="bg-blue-600 p-2 rounded-lg">
               <FileText className="h-6 w-6 text-white" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">MedSimplify</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Liaise</h1>
           </Link>
 
           {/* Desktop Navigation */}
