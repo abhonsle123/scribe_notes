@@ -9,6 +9,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Function to estimate token count (rough approximation: 1 token ≈ 4 characters)
+const estimateTokens = (text: string) => Math.ceil(text.length / 4);
+
+// Function to truncate text to fit within token limits
+const truncateText = (text: string, maxTokens: number = 15000) => {
+  const estimatedTokens = estimateTokens(text);
+  if (estimatedTokens <= maxTokens) {
+    return text;
+  }
+  
+  // Calculate approximate character limit
+  const maxChars = maxTokens * 4;
+  const truncated = text.substring(0, maxChars);
+  
+  // Try to cut at a sentence boundary
+  const lastSentence = truncated.lastIndexOf('.');
+  if (lastSentence > maxChars * 0.8) {
+    return truncated.substring(0, lastSentence + 1);
+  }
+  
+  return truncated;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -23,6 +46,11 @@ serve(async (req) => {
     }
 
     console.log('Converting medical text to patient-friendly language...');
+    console.log('Original text length:', medicalText.length);
+
+    // Truncate the input text if it's too long
+    const truncatedText = truncateText(medicalText, 15000);
+    console.log('Truncated text length:', truncatedText.length);
 
     const systemPrompt = `You are a medical communication expert specializing in converting complex medical documents into patient-friendly language. Your task is to rewrite medical discharge summaries and documents using the following guidelines:
 
@@ -57,7 +85,7 @@ Remember: Your goal is to help patients understand their care while feeling info
 
     const userPrompt = `Please convert this medical discharge document into a patient-friendly summary following the guidelines above:
 
-${medicalText}
+${truncatedText}
 
 ${additionalNotes ? `Additional context/instructions: ${additionalNotes}` : ''}`;
 
@@ -68,7 +96,7 @@ ${additionalNotes ? `Additional context/instructions: ${additionalNotes}` : ''}`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -80,6 +108,7 @@ ${additionalNotes ? `Additional context/instructions: ${additionalNotes}` : ''}`
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.error('OpenAI API error:', errorData);
       throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
