@@ -326,7 +326,14 @@ const NewSummary = () => {
                     className="hidden"
                     id="file-upload"
                   />
-                  <Button variant="outline" className="cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                  <Button 
+                    variant="outline" 
+                    className="cursor-pointer" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleUploadAreaClick();
+                    }}
+                  >
                     Choose Files
                   </Button>
                 </div>
