@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Upload, FileText, Mail, Shield, Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   const [medicalReport, setMedicalReport] = useState("");
@@ -106,24 +107,8 @@ If you have any questions about this summary or your care, please don't hesitate
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="bg-blue-600 p-2 rounded-lg">
-                <FileText className="h-6 w-6 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold text-gray-900">MedSimplify</h1>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Shield className="h-5 w-5 text-green-600" />
-              <span className="text-sm text-gray-600">HIPAA Compliant</span>
-            </div>
-          </div>
-        </div>
-      </header>
-
+      <Header />
+      
       {/* Hero Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -278,19 +263,7 @@ If you have any questions about this summary or your care, please don't hesitate
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <p className="text-gray-300">
-              © 2024 MedSimplify. Improving healthcare communication through AI.
-            </p>
-            <p className="text-sm text-gray-400 mt-2">
-              HIPAA compliant • Secure • Trusted by healthcare providers
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 };
