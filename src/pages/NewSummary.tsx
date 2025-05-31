@@ -59,6 +59,13 @@ const NewSummary = () => {
     }
   };
 
+  const handleUploadAreaClick = () => {
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  };
+
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
@@ -290,17 +297,18 @@ const NewSummary = () => {
             </CardHeader>
             <CardContent>
               <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
                   dragActive
                     ? 'border-blue-500 bg-blue-50'
                     : files.length > 0
                     ? 'border-green-500 bg-green-50'
-                    : 'border-gray-300 hover:border-gray-400'
+                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
                 }`}
                 onDragEnter={handleDrag}
                 onDragLeave={handleDrag}
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
+                onClick={handleUploadAreaClick}
               >
                 <div className="space-y-4">
                   <Upload className="h-12 w-12 text-gray-400 mx-auto" />
@@ -318,11 +326,9 @@ const NewSummary = () => {
                     className="hidden"
                     id="file-upload"
                   />
-                  <label htmlFor="file-upload">
-                    <Button variant="outline" className="cursor-pointer">
-                      Choose Files
-                    </Button>
-                  </label>
+                  <Button variant="outline" className="cursor-pointer" onClick={(e) => e.stopPropagation()}>
+                    Choose Files
+                  </Button>
                 </div>
               </div>
 
