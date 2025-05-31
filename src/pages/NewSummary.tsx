@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,11 +12,14 @@ import {
   Edit,
   Send,
   Eye,
-  AlertCircle
+  AlertCircle,
+  File,
+  Image,
+  X
 } from "lucide-react";
 
 const NewSummary = () => {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [notes, setNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [isProcessed, setIsProcessed] = useState(false);
@@ -38,18 +40,45 @@ const NewSummary = () => {
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      const droppedFile = e.dataTransfer.files[0];
-      if (droppedFile.type === "application/pdf") {
-        setFile(droppedFile);
-      }
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      const validFiles = droppedFiles.filter(file => 
+        file.type === "application/pdf" || 
+        file.type.startsWith("image/") ||
+        file.type === "application/msword" ||
+        file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      );
+      setFiles(prev => [...prev, ...validFiles]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFiles = Array.from(e.target.files);
+      setFiles(prev => [...prev, ...selectedFiles]);
     }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const getFileIcon = (file: File) => {
+    if (file.type === "application/pdf") {
+      return <FileText className="h-6 w-6 text-red-600" />;
+    } else if (file.type.startsWith("image/")) {
+      return <Image className="h-6 w-6 text-blue-600" />;
+    } else {
+      return <File className="h-6 w-6 text-gray-600" />;
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
   const handleGenerateSummary = async () => {
@@ -216,7 +245,7 @@ const NewSummary = () => {
             <div className="space-y-2 text-sm text-gray-500">
               <div className="flex items-center justify-center">
                 <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
-                Document uploaded and validated
+                Files uploaded and validated
               </div>
               <div className="flex items-center justify-center">
                 <Clock className="h-4 w-4 text-blue-600 mr-2" />
@@ -234,7 +263,7 @@ const NewSummary = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Create New Summary</h1>
         <p className="text-gray-600 mt-1">
-          Upload a discharge summary to generate a patient-friendly version
+          Upload discharge summaries to generate patient-friendly versions
         </p>
       </div>
 
@@ -254,9 +283,9 @@ const NewSummary = () => {
         <div className="lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Upload Discharge Summary</CardTitle>
+              <CardTitle>Upload Documents</CardTitle>
               <CardDescription>
-                Upload a PDF file containing the patient's discharge summary
+                Upload PDF files, images, or Word documents containing discharge summaries
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -264,7 +293,7 @@ const NewSummary = () => {
                 className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
                   dragActive
                     ? 'border-blue-500 bg-blue-50'
-                    : file
+                    : files.length > 0
                     ? 'border-green-500 bg-green-50'
                     : 'border-gray-300 hover:border-gray-400'
                 }`}
@@ -273,44 +302,57 @@ const NewSummary = () => {
                 onDragOver={handleDrag}
                 onDrop={handleDrop}
               >
-                {file ? (
-                  <div className="space-y-4">
-                    <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
-                    <div>
-                      <p className="text-lg font-semibold text-green-800">{file.name}</p>
-                      <p className="text-green-600">File ready for processing</p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      onClick={() => setFile(null)}
-                    >
-                      Remove File
+                <div className="space-y-4">
+                  <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                  <div>
+                    <p className="text-lg font-semibold text-gray-700">
+                      Drop your files here, or click to browse
+                    </p>
+                    <p className="text-gray-500">PDF, DOC, DOCX, JPG, PNG files • Max 10MB each</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={handleFileChange}
+                    multiple
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <label htmlFor="file-upload">
+                    <Button variant="outline" className="cursor-pointer">
+                      Choose Files
                     </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <Upload className="h-12 w-12 text-gray-400 mx-auto" />
-                    <div>
-                      <p className="text-lg font-semibold text-gray-700">
-                        Drop your PDF here, or click to browse
-                      </p>
-                      <p className="text-gray-500">PDF files only, max 10MB</p>
-                    </div>
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      onChange={handleFileChange}
-                      className="hidden"
-                      id="file-upload"
-                    />
-                    <label htmlFor="file-upload">
-                      <Button variant="outline" className="cursor-pointer">
-                        Choose File
-                      </Button>
-                    </label>
-                  </div>
-                )}
+                  </label>
+                </div>
               </div>
+
+              {/* Uploaded Files List */}
+              {files.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Uploaded Files ({files.length})</h4>
+                  <div className="space-y-2">
+                    {files.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          {getFileIcon(file)}
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 truncate max-w-xs">{file.name}</p>
+                            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                          className="text-gray-400 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -339,13 +381,13 @@ const NewSummary = () => {
             <CardHeader>
               <CardTitle>Generate Summary</CardTitle>
               <CardDescription>
-                Convert discharge summary to patient-friendly language
+                Convert discharge documents to patient-friendly language
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Button
                 onClick={handleGenerateSummary}
-                disabled={!file}
+                disabled={files.length === 0}
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 size="lg"
               >
@@ -353,10 +395,10 @@ const NewSummary = () => {
                 Generate Summary
               </Button>
               
-              {!file && (
+              {files.length === 0 && (
                 <div className="flex items-start space-x-2 text-sm text-amber-600">
                   <AlertCircle className="h-4 w-4 mt-0.5" />
-                  <span>Please upload a PDF file first</span>
+                  <span>Please upload at least one file first</span>
                 </div>
               )}
             </CardContent>
@@ -371,7 +413,7 @@ const NewSummary = () => {
                 <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
                   <span className="text-xs font-bold">1</span>
                 </div>
-                <span>AI analyzes the medical content</span>
+                <span>AI analyzes the uploaded documents</span>
               </div>
               <div className="flex items-start space-x-3">
                 <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
