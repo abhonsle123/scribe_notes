@@ -10,7 +10,7 @@ const Header = () => {
   const { user, signOut } = useAuth();
 
   const navigation = [
-    { name: "Home", href: "/" },
+    ...(user ? [{ name: "Dashboard", href: "/dashboard" }] : []),
     { name: "How it Works", href: "/how-it-works" },
     { name: "Pricing", href: "/pricing" },
     { name: "FAQs", href: "/faqs" },
@@ -26,7 +26,7 @@ const Header = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <Link to="/" className="flex items-center space-x-3">
+          <Link to={user ? "/dashboard" : "/"} className="flex items-center space-x-3">
             <div className="bg-blue-600 p-2 rounded-lg">
               <FileText className="h-6 w-6 text-white" />
             </div>
