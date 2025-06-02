@@ -21,8 +21,8 @@ import {
   X
 } from "lucide-react";
 
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Set up PDF.js worker with a more reliable URL
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
 
 const NewSummary = () => {
   const [files, setFiles] = useState<File[]>([]);
@@ -103,23 +103,34 @@ const NewSummary = () => {
 
   const extractTextFromPDF = async (file: File): Promise<string> => {
     try {
+      console.log(`Starting PDF text extraction for: ${file.name}`);
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      console.log(`PDF file size: ${arrayBuffer.byteLength} bytes`);
+      
+      const pdf = await pdfjsLib.getDocument({ 
+        data: arrayBuffer,
+        verbosity: 0 // Reduce console spam
+      }).promise;
+      
+      console.log(`PDF loaded successfully. Pages: ${pdf.numPages}`);
       let fullText = '';
 
       for (let i = 1; i <= pdf.numPages; i++) {
+        console.log(`Processing page ${i} of ${pdf.numPages}`);
         const page = await pdf.getPage(i);
         const textContent = await page.getTextContent();
         const pageText = textContent.items
           .map((item: any) => item.str)
           .join(' ');
         fullText += pageText + '\n';
+        console.log(`Page ${i} extracted ${pageText.length} characters`);
       }
 
+      console.log(`Total text extracted: ${fullText.length} characters`);
       return fullText.trim();
     } catch (error) {
       console.error('Error extracting PDF text:', error);
-      throw new Error(`Failed to extract text from PDF: ${file.name}`);
+      throw new Error(`Failed to extract text from PDF: ${file.name} - ${error}`);
     }
   };
 
@@ -201,7 +212,8 @@ const NewSummary = () => {
         textLength: combinedText.length, 
         hasNotes: !!notes,
         successfulExtractions,
-        totalFiles: files.length 
+        totalFiles: files.length,
+        preview: combinedText.substring(0, 200) + '...'
       });
 
       // Call the Supabase Edge Function
