@@ -1,3 +1,4 @@
+
 export const extractTextFromFile = async (file: File): Promise<string> => {
   try {
     // Handle text files directly
@@ -5,9 +6,9 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
       return await file.text();
     }
 
-    // Handle PDF files - improved approach
+    // For PDF files - skip client-side extraction, let the AI handle it
     if (file.type === 'application/pdf') {
-      return await extractTextFromPDF(file);
+      return `[PDF file: ${file.name}]\n\nThis PDF will be processed directly by the AI. The AI can handle complex PDFs with images, tables, and formatting automatically.`;
     }
 
     // Handle Word documents - basic text extraction
@@ -25,68 +26,6 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
   } catch (error) {
     console.error('Error extracting text from file:', error);
     throw new Error(`Failed to extract text from ${file.name}: ${error.message}`);
-  }
-};
-
-const extractTextFromPDF = async (file: File): Promise<string> => {
-  try {
-    // For complex PDFs, we'll provide a more user-friendly fallback message
-    // rather than attempting complex parsing that might cause stack overflow
-    console.log('Processing PDF file:', file.name, 'Size:', file.size);
-    
-    // Check if the PDF is very large or complex (>2MB) - skip text extraction
-    if (file.size > 2 * 1024 * 1024) {
-      console.log('Large PDF detected, providing fallback message');
-      return `[Large PDF file: ${file.name}]\n\nThis PDF file is quite large and may contain complex formatting, images, or tables. For best results:\n\n✅ **Option 1 (Recommended)**: Copy and paste the text directly\n- Open the PDF in a PDF viewer\n- Select all text (Ctrl/Cmd + A)\n- Copy the text (Ctrl/Cmd + C)\n- Paste it into the "Additional Notes" field below\n\n✅ **Option 2**: The AI can process the PDF directly\n- Simply proceed with generating the summary\n- The AI will analyze the PDF content automatically\n- This works best for text-based PDFs\n\nNote: Complex PDFs with many images or tables work best when the text is copied and pasted manually.`;
-    }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // Use a more conservative approach for text extraction to avoid stack overflow
-    let extractedText = '';
-    
-    try {
-      // Convert to string with error handling
-      const decoder = new TextDecoder('latin1', { fatal: false });
-      const pdfString = decoder.decode(uint8Array.slice(0, Math.min(uint8Array.length, 500000))); // Limit to first 500KB to avoid issues
-      
-      // Simple pattern matching with limits to prevent infinite loops
-      const textMatches = pdfString.match(/\(([^()]{1,200})\)/g); // Limit match length
-      
-      if (textMatches && textMatches.length > 0) {
-        // Process only first 100 matches to avoid performance issues
-        const limitedMatches = textMatches.slice(0, 100);
-        
-        for (const match of limitedMatches) {
-          const cleanText = match.replace(/[()]/g, '').trim();
-          if (cleanText.length > 3 && cleanText.length < 100 && /[a-zA-Z]/.test(cleanText)) {
-            extractedText += cleanText + ' ';
-          }
-        }
-      }
-      
-      // Clean up extracted text
-      extractedText = extractedText
-        .replace(/\s+/g, ' ')
-        .replace(/[^\x20-\x7E\s]/g, '')
-        .trim();
-      
-    } catch (processingError) {
-      console.log('PDF processing error, providing fallback:', processingError.message);
-      extractedText = '';
-    }
-    
-    // If we got some meaningful text, return it
-    if (extractedText.length > 50 && extractedText.split(' ').length > 10) {
-      return `PDF Content from ${file.name}:\n\n${extractedText}`;
-    } else {
-      // Provide helpful guidance for complex PDFs
-      return `[PDF file: ${file.name}]\n\nThis PDF may contain complex formatting, images, or tables that require special handling.\n\n**Choose your preferred option:**\n\n✅ **Option 1**: Let the AI process the PDF directly\n- Simply proceed with "Generate Summary"\n- The AI will analyze the PDF content automatically\n- This works well for most discharge summaries\n\n✅ **Option 2**: Copy and paste the text manually\n- Open the PDF in a PDF viewer\n- Select all text (Ctrl/Cmd + A)\n- Copy and paste into the "Additional Notes" field below\n- This ensures 100% accuracy for complex documents\n\nBoth options will work - choose whichever you prefer!`;
-    }
-  } catch (error) {
-    console.error('PDF extraction error:', error);
-    return `[PDF file: ${file.name}]\n\nThis PDF will be processed directly by the AI. Simply proceed with "Generate Summary" and the AI will analyze the document content automatically.\n\nAlternatively, if you prefer manual control, you can:\n- Open the PDF in a viewer\n- Copy the text content\n- Paste it into the "Additional Notes" field below`;
   }
 };
 
