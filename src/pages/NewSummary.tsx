@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,31 +118,66 @@ const NewSummary = () => {
       let fileData = null;
       let combinedContent = "";
 
-      // For the first file, if it's a PDF, Word doc, or image, send it directly to Gemini
+      // For the first file, if it's a supported type for direct upload, send it directly
       const firstFile = files[0];
-      if (firstFile.type === 'application/pdf' || 
-          firstFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-          firstFile.type === 'application/msword' ||
-          firstFile.type.startsWith('image/')) {
-        
-        // Convert file to base64 for upload
-        const arrayBuffer = await firstFile.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-        
-        fileData = {
-          data: base64,
-          mimeType: firstFile.type,
-          name: firstFile.name
-        };
+      const supportedForDirectUpload = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp'
+      ];
+
+      if (supportedForDirectUpload.includes(firstFile.type)) {
+        try {
+          console.log('Converting file to base64 for direct upload:', firstFile.name);
+          
+          // Use FileReader for more reliable base64 conversion
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === 'string') {
+                // Remove the data URL prefix to get just the base64 data
+                const base64Data = reader.result.split(',')[1];
+                resolve(base64Data);
+              } else {
+                reject(new Error('Failed to read file as base64'));
+              }
+            };
+            reader.onerror = () => reject(new Error('File reading failed'));
+            reader.readAsDataURL(firstFile);
+          });
+          
+          fileData = {
+            data: base64,
+            mimeType: firstFile.type,
+            name: firstFile.name
+          };
+          
+          console.log('File converted successfully for direct upload');
+        } catch (conversionError) {
+          console.error('Failed to convert file for direct upload:', conversionError);
+          // Fall back to text extraction
+          fileData = null;
+        }
       }
 
       // For text files or as fallback, extract text content
-      if (!fileData || firstFile.type === 'text/plain') {
+      if (!fileData) {
+        console.log('Using text extraction fallback');
         for (const file of files) {
-          const extractedText = await extractTextFromFile(file);
-          combinedContent += `\n\n--- Document: ${file.name} ---\n${extractedText}`;
+          try {
+            const extractedText = await extractTextFromFile(file);
+            combinedContent += `\n\n--- Document: ${file.name} ---\n${extractedText}`;
+          } catch (extractionError) {
+            console.error('Text extraction failed for', file.name, ':', extractionError);
+            // Continue with a placeholder for failed files
+            combinedContent += `\n\n--- Document: ${file.name} ---\n[File processing failed - please check file format]`;
+          }
         }
       }
+
+      console.log('Calling Supabase edge function...');
 
       // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('convert-to-patient-friendly', {
