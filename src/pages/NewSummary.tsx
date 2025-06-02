@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import * as pdfjsLib from 'pdfjs-dist';
 import {
   Upload,
   FileText,
@@ -19,6 +20,9 @@ import {
   Image,
   X
 } from "lucide-react";
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const NewSummary = () => {
   const [files, setFiles] = useState<File[]>([]);
@@ -97,32 +101,60 @@ const NewSummary = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n';
+      }
+
+      return fullText.trim();
+    } catch (error) {
+      console.error('Error extracting PDF text:', error);
+      throw new Error(`Failed to extract text from PDF: ${file.name}`);
+    }
+  };
+
   const extractTextFromFile = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      if (file.type === "application/pdf") {
-        // For PDF files, we'll send the raw content and let the AI handle it
-        // This is a simple approach - in production you'd want proper PDF parsing
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const arrayBuffer = e.target?.result as ArrayBuffer;
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-          resolve(`[PDF Content from ${file.name}]\n${binaryString}`);
-        };
-        reader.onerror = () => reject(new Error('Failed to read PDF file'));
-        reader.readAsArrayBuffer(file);
-      } else if (file.type.startsWith("image/")) {
-        // For images, we'll include a note about the image
-        resolve(`[Image file: ${file.name} - Content would require OCR processing]`);
-      } else {
-        // For text-based files
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const text = e.target?.result as string;
-          resolve(text || `[Content from ${file.name}]`);
-        };
-        reader.onerror = () => reject(new Error('Failed to read file'));
-        reader.readAsText(file);
+    return new Promise(async (resolve, reject) => {
+      try {
+        if (file.type === "application/pdf") {
+          console.log(`Extracting text from PDF: ${file.name}`);
+          const pdfText = await extractTextFromPDF(file);
+          if (!pdfText.trim()) {
+            resolve(`[PDF file: ${file.name} - No readable text content found]`);
+          } else {
+            resolve(pdfText);
+          }
+        } else if (file.type.startsWith("image/")) {
+          resolve(`[Image file: ${file.name} - This appears to be an image file. For best results, please upload text-based documents like PDFs or Word files containing the discharge summary text.]`);
+        } else if (
+          file.type === "application/msword" ||
+          file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+          file.type.startsWith("text/")
+        ) {
+          // For text-based files
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const text = e.target?.result as string;
+            resolve(text || `[Content from ${file.name}]`);
+          };
+          reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
+          reader.readAsText(file);
+        } else {
+          resolve(`[Unsupported file type: ${file.name} - Please upload PDF, Word, or text files]`);
+        }
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+        reject(error);
       }
     });
   };
@@ -142,21 +174,35 @@ const NewSummary = () => {
     try {
       // Extract text from all files
       let combinedText = "";
+      let successfulExtractions = 0;
+      
       for (const file of files) {
         try {
+          console.log(`Processing file: ${file.name}, type: ${file.type}`);
           const fileText = await extractTextFromFile(file);
-          combinedText += `\n\n--- Content from ${file.name} ---\n${fileText}`;
+          
+          if (fileText && !fileText.includes('No readable text content found') && !fileText.includes('Unsupported file type')) {
+            combinedText += `\n\n=== DOCUMENT: ${file.name} ===\n${fileText}`;
+            successfulExtractions++;
+          } else {
+            combinedText += `\n\n=== ${file.name} ===\n${fileText}`;
+          }
         } catch (error) {
           console.error(`Error reading file ${file.name}:`, error);
-          combinedText += `\n\n--- ${file.name} (could not read content) ---\n`;
+          combinedText += `\n\n=== ${file.name} (Error reading file) ===\n[Could not extract content from this file]`;
         }
       }
 
-      if (!combinedText.trim()) {
-        throw new Error("No readable content found in the uploaded files");
+      if (successfulExtractions === 0) {
+        throw new Error("No readable medical content was found in the uploaded files. Please ensure you're uploading text-based medical documents (PDF, Word, or text files) that contain discharge summary information.");
       }
 
-      console.log('Sending to API:', { textLength: combinedText.length, hasNotes: !!notes });
+      console.log('Sending to API:', { 
+        textLength: combinedText.length, 
+        hasNotes: !!notes,
+        successfulExtractions,
+        totalFiles: files.length 
+      });
 
       // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('convert-to-patient-friendly', {
