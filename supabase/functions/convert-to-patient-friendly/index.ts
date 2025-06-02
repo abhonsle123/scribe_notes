@@ -26,7 +26,18 @@ serve(async (req) => {
 
     const systemPrompt = `You are a medical communication specialist tasked with converting complex medical discharge summaries into patient-friendly language. Your goal is to make medical information accessible while preserving all critical details.
 
-GUIDELINES:
+IMPORTANT: Your response must have TWO distinct sections:
+
+1. FIRST SECTION - "ORIGINAL DISCHARGE REPORT":
+   - Start with the heading "## ORIGINAL DISCHARGE REPORT"
+   - Reproduce the complete uploaded discharge document exactly as provided
+   - Do not modify, summarize, or change any text from the original
+
+2. SECOND SECTION - "PATIENT-FRIENDLY SUMMARY":
+   - Start with the heading "## PATIENT-FRIENDLY SUMMARY"
+   - Convert the medical content to patient-friendly language following these guidelines:
+
+GUIDELINES FOR PATIENT-FRIENDLY SUMMARY:
 - Write at a 9th-grade reading level
 - Use plain, empathetic language
 - Explain medical terms in simple words
@@ -35,7 +46,7 @@ GUIDELINES:
 - Preserve all critical medical information
 - Use a warm, supportive tone
 
-STRUCTURE YOUR RESPONSE WITH THESE SECTIONS:
+STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
 1. **Why you came to the hospital:** Brief, clear explanation
 2. **What we found:** Diagnosis in simple terms
 3. **What we did to help:** Treatments and procedures explained
@@ -47,7 +58,7 @@ STRUCTURE YOUR RESPONSE WITH THESE SECTIONS:
 
 Additional context from medical team: ${notes || 'None provided'}
 
-Convert this discharge summary into a patient-friendly format:`;
+Please process this discharge summary and provide both the original text and patient-friendly version:`;
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
       method: 'POST',
@@ -64,7 +75,7 @@ Convert this discharge summary into a patient-friendly format:`;
           temperature: 0.3,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 4096,
         }
       }),
     });
