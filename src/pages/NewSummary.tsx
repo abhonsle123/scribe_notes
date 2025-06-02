@@ -114,22 +114,41 @@ const NewSummary = () => {
         }
       }
 
-      // Extract text from all files
+      let fileData = null;
       let combinedContent = "";
-      for (const file of files) {
-        const extractedText = await extractTextFromFile(file);
-        combinedContent += `\n\n--- Document: ${file.name} ---\n${extractedText}`;
+
+      // For the first file, if it's a PDF, Word doc, or image, send it directly to Gemini
+      const firstFile = files[0];
+      if (firstFile.type === 'application/pdf' || 
+          firstFile.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+          firstFile.type === 'application/msword' ||
+          firstFile.type.startsWith('image/')) {
+        
+        // Convert file to base64 for upload
+        const arrayBuffer = await firstFile.arrayBuffer();
+        const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+        
+        fileData = {
+          data: base64,
+          mimeType: firstFile.type,
+          name: firstFile.name
+        };
       }
 
-      if (!combinedContent.trim()) {
-        throw new Error("No readable content found in uploaded files");
+      // For text files or as fallback, extract text content
+      if (!fileData || firstFile.type === 'text/plain') {
+        for (const file of files) {
+          const extractedText = await extractTextFromFile(file);
+          combinedContent += `\n\n--- Document: ${file.name} ---\n${extractedText}`;
+        }
       }
 
       // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('convert-to-patient-friendly', {
         body: {
           content: combinedContent,
-          notes: notes
+          notes: notes,
+          fileData: fileData
         }
       });
 

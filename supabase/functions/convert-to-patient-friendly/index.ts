@@ -13,15 +13,64 @@ serve(async (req) => {
   }
 
   try {
-    const { content, notes } = await req.json();
-
-    if (!content) {
-      throw new Error('Document content is required');
-    }
+    const { content, notes, fileData } = await req.json();
 
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
       throw new Error('Google AI API key not configured');
+    }
+
+    let fileUri = null;
+    let mimeType = null;
+
+    // If we have file data, upload it to Gemini's file API
+    if (fileData && fileData.data && fileData.mimeType) {
+      console.log('Uploading file to Gemini File API...');
+      
+      // Convert base64 to bytes
+      const fileBytes = Uint8Array.from(atob(fileData.data), c => c.charCodeAt(0));
+      
+      // Upload file to Gemini
+      const uploadResponse = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'X-Goog-Upload-Protocol': 'multipart',
+        },
+        body: createMultipartBody(fileBytes, fileData.mimeType, fileData.name || 'discharge_summary')
+      });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.text();
+        console.error('File upload failed:', errorData);
+        throw new Error('Failed to upload file to Gemini');
+      }
+
+      const uploadResult = await uploadResponse.json();
+      fileUri = uploadResult.file.uri;
+      mimeType = uploadResult.file.mimeType;
+      
+      console.log('File uploaded successfully:', fileUri);
+
+      // Wait for file to be processed
+      let processed = false;
+      let attempts = 0;
+      while (!processed && attempts < 30) {
+        const statusResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/files/${uploadResult.file.name.split('/').pop()}?key=${apiKey}`);
+        const statusData = await statusResponse.json();
+        
+        if (statusData.state === 'ACTIVE') {
+          processed = true;
+        } else if (statusData.state === 'FAILED') {
+          throw new Error('File processing failed');
+        } else {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          attempts++;
+        }
+      }
+
+      if (!processed) {
+        throw new Error('File processing timeout');
+      }
     }
 
     const systemPrompt = `You are a medical communication specialist tasked with converting complex medical discharge summaries into patient-friendly language. Your goal is to make medical information accessible while preserving all critical details.
@@ -56,28 +105,49 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
 7. **When to come back:** Follow-up instructions
 8. **Emergency signs:** When to seek immediate help
 
-Additional context from medical team: ${notes || 'None provided'}
+Additional context from medical team: ${notes || 'None provided'}`;
 
-Please process this discharge summary and provide both the original text and patient-friendly version:`;
+    // Prepare the request body
+    const requestBody: any = {
+      contents: [{
+        parts: []
+      }],
+      generationConfig: {
+        temperature: 0.3,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 4096,
+      }
+    };
+
+    // Add the system prompt
+    requestBody.contents[0].parts.push({
+      text: systemPrompt
+    });
+
+    // Add file reference if we have one
+    if (fileUri) {
+      requestBody.contents[0].parts.push({
+        fileData: {
+          mimeType: mimeType,
+          fileUri: fileUri
+        }
+      });
+    } else {
+      // Fallback to text content if no file was uploaded
+      requestBody.contents[0].parts.push({
+        text: `Please process this discharge summary:\n\n${content}`
+      });
+    }
+
+    console.log('Sending request to Gemini with file reference:', fileUri ? 'Yes' : 'No');
 
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `${systemPrompt}\n\n${content}`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.3,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 4096,
-        }
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -93,6 +163,17 @@ Please process this discharge summary and provide both the original text and pat
     }
 
     const generatedSummary = data.candidates[0].content.parts[0].text;
+
+    // Clean up uploaded file
+    if (fileUri) {
+      try {
+        await fetch(`https://generativelanguage.googleapis.com/v1beta/files/${fileUri.split('/').pop()}?key=${apiKey}`, {
+          method: 'DELETE'
+        });
+      } catch (error) {
+        console.error('Failed to delete uploaded file:', error);
+      }
+    }
 
     return new Response(
       JSON.stringify({ summary: generatedSummary }),
@@ -112,3 +193,19 @@ Please process this discharge summary and provide both the original text and pat
     );
   }
 });
+
+function createMultipartBody(fileBytes: Uint8Array, mimeType: string, fileName: string): FormData {
+  const formData = new FormData();
+  
+  const metadata = {
+    file: {
+      displayName: fileName,
+      mimeType: mimeType
+    }
+  };
+  
+  formData.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  formData.append('data', new Blob([fileBytes], { type: mimeType }));
+  
+  return formData;
+}
