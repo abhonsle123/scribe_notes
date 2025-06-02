@@ -21,8 +21,18 @@ import {
   X
 } from "lucide-react";
 
-// Set up PDF.js worker with a more reliable URL
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.js`;
+// Set up PDF.js worker using a blob-based approach to avoid CDN issues
+const workerCode = `
+importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js');
+`;
+
+try {
+  const workerBlob = new Blob([workerCode], { type: 'application/javascript' });
+  pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
+} catch (error) {
+  console.warn('Failed to set up PDF worker with blob, falling back to CDN');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
 
 const NewSummary = () => {
   const [files, setFiles] = useState<File[]>([]);
@@ -107,30 +117,54 @@ const NewSummary = () => {
       const arrayBuffer = await file.arrayBuffer();
       console.log(`PDF file size: ${arrayBuffer.byteLength} bytes`);
       
-      const pdf = await pdfjsLib.getDocument({ 
+      // Create a more robust loading task with better error handling
+      const loadingTask = pdfjsLib.getDocument({
         data: arrayBuffer,
-        verbosity: 0 // Reduce console spam
-      }).promise;
+        verbosity: 0,
+        // Disable worker for problematic environments
+        useWorkerFetch: false,
+        isEvalSupported: false,
+        useSystemFonts: true
+      });
       
+      console.log('PDF loading task created, waiting for document...');
+      const pdf = await loadingTask.promise;
       console.log(`PDF loaded successfully. Pages: ${pdf.numPages}`);
+      
       let fullText = '';
+      const maxPages = Math.min(pdf.numPages, 50); // Limit to first 50 pages to avoid timeout
 
-      for (let i = 1; i <= pdf.numPages; i++) {
-        console.log(`Processing page ${i} of ${pdf.numPages}`);
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items
-          .map((item: any) => item.str)
-          .join(' ');
-        fullText += pageText + '\n';
-        console.log(`Page ${i} extracted ${pageText.length} characters`);
+      for (let i = 1; i <= maxPages; i++) {
+        try {
+          console.log(`Processing page ${i} of ${maxPages}`);
+          const page = await pdf.getPage(i);
+          const textContent = await page.getTextContent();
+          
+          const pageText = textContent.items
+            .filter((item: any) => item.str && item.str.trim().length > 0)
+            .map((item: any) => item.str.trim())
+            .join(' ');
+          
+          if (pageText.trim()) {
+            fullText += pageText + '\n\n';
+            console.log(`Page ${i} extracted ${pageText.length} characters`);
+          }
+        } catch (pageError) {
+          console.warn(`Error processing page ${i}:`, pageError);
+          // Continue with next page
+        }
       }
 
       console.log(`Total text extracted: ${fullText.length} characters`);
+      
+      if (fullText.trim().length < 50) {
+        throw new Error('Insufficient text content extracted from PDF. The document may be image-based or corrupted.');
+      }
+      
       return fullText.trim();
     } catch (error) {
       console.error('Error extracting PDF text:', error);
-      throw new Error(`Failed to extract text from PDF: ${file.name} - ${error}`);
+      throw new Error(`Failed to extract text from PDF: ${file.name} - ${error.message}`);
     }
   };
 
@@ -139,11 +173,16 @@ const NewSummary = () => {
       try {
         if (file.type === "application/pdf") {
           console.log(`Extracting text from PDF: ${file.name}`);
-          const pdfText = await extractTextFromPDF(file);
-          if (!pdfText.trim()) {
-            resolve(`[PDF file: ${file.name} - No readable text content found]`);
-          } else {
-            resolve(pdfText);
+          try {
+            const pdfText = await extractTextFromPDF(file);
+            if (!pdfText.trim() || pdfText.length < 50) {
+              resolve(`[PDF file: ${file.name} - Minimal text content found. This may be an image-based PDF. Please try uploading a text-based PDF or convert to Word document.]`);
+            } else {
+              resolve(pdfText);
+            }
+          } catch (pdfError) {
+            console.error('PDF extraction failed:', pdfError);
+            resolve(`[PDF file: ${file.name} - Could not extract text content. Error: ${pdfError.message}. Please try uploading a different format or ensure the PDF contains selectable text.]`);
           }
         } else if (file.type.startsWith("image/")) {
           resolve(`[Image file: ${file.name} - This appears to be an image file. For best results, please upload text-based documents like PDFs or Word files containing the discharge summary text.]`);
@@ -186,13 +225,23 @@ const NewSummary = () => {
       // Extract text from all files
       let combinedText = "";
       let successfulExtractions = 0;
+      let extractedContent = [];
       
       for (const file of files) {
         try {
           console.log(`Processing file: ${file.name}, type: ${file.type}`);
           const fileText = await extractTextFromFile(file);
           
-          if (fileText && !fileText.includes('No readable text content found') && !fileText.includes('Unsupported file type')) {
+          extractedContent.push({
+            fileName: file.name,
+            content: fileText,
+            isSuccessful: fileText && !fileText.includes('No readable text content found') && 
+                          !fileText.includes('Unsupported file type') && 
+                          !fileText.includes('Could not extract text content') &&
+                          fileText.length > 100
+          });
+          
+          if (extractedContent[extractedContent.length - 1].isSuccessful) {
             combinedText += `\n\n=== DOCUMENT: ${file.name} ===\n${fileText}`;
             successfulExtractions++;
           } else {
@@ -200,12 +249,22 @@ const NewSummary = () => {
           }
         } catch (error) {
           console.error(`Error reading file ${file.name}:`, error);
-          combinedText += `\n\n=== ${file.name} (Error reading file) ===\n[Could not extract content from this file]`;
+          combinedText += `\n\n=== ${file.name} (Error reading file) ===\n[Could not extract content from this file: ${error.message}]`;
         }
       }
 
+      console.log('Extraction results:', {
+        totalFiles: files.length,
+        successfulExtractions,
+        extractedContent: extractedContent.map(item => ({
+          fileName: item.fileName,
+          isSuccessful: item.isSuccessful,
+          contentLength: item.content.length
+        }))
+      });
+
       if (successfulExtractions === 0) {
-        throw new Error("No readable medical content was found in the uploaded files. Please ensure you're uploading text-based medical documents (PDF, Word, or text files) that contain discharge summary information.");
+        throw new Error("No readable medical content was found in the uploaded files. Please ensure you're uploading text-based medical documents (PDF, Word, or text files) that contain discharge summary information. If uploading PDFs, make sure they contain selectable text rather than scanned images.");
       }
 
       console.log('Sending to API:', { 
@@ -213,7 +272,7 @@ const NewSummary = () => {
         hasNotes: !!notes,
         successfulExtractions,
         totalFiles: files.length,
-        preview: combinedText.substring(0, 200) + '...'
+        preview: combinedText.substring(0, 300) + '...'
       });
 
       // Call the Supabase Edge Function
