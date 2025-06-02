@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { extractTextFromFile, validateFileForProcessing } from "@/utils/fileProcessor";
 import {
   Upload,
   FileText,
@@ -24,6 +27,8 @@ const NewSummary = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isProcessed, setIsProcessed] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [generatedSummary, setGeneratedSummary] = useState("");
+  const { toast } = useToast();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -89,49 +94,73 @@ const NewSummary = () => {
   };
 
   const handleGenerateSummary = async () => {
+    if (files.length === 0) {
+      toast({
+        title: "No files uploaded",
+        description: "Please upload at least one document first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsProcessing(true);
-    // Simulate processing time
-    setTimeout(() => {
-      setIsProcessing(false);
+
+    try {
+      // Validate all files
+      for (const file of files) {
+        const validation = validateFileForProcessing(file);
+        if (!validation.isValid) {
+          throw new Error(`${file.name}: ${validation.error}`);
+        }
+      }
+
+      // Extract text from all files
+      let combinedContent = "";
+      for (const file of files) {
+        const extractedText = await extractTextFromFile(file);
+        combinedContent += `\n\n--- Document: ${file.name} ---\n${extractedText}`;
+      }
+
+      if (!combinedContent.trim()) {
+        throw new Error("No readable content found in uploaded files");
+      }
+
+      // Call the Supabase Edge Function
+      const { data, error } = await supabase.functions.invoke('convert-to-patient-friendly', {
+        body: {
+          content: combinedContent,
+          notes: notes
+        }
+      });
+
+      if (error) {
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to generate summary');
+      }
+
+      if (!data || !data.summary) {
+        throw new Error('Invalid response from AI service');
+      }
+
+      setGeneratedSummary(data.summary);
       setIsProcessed(true);
-    }, 3000);
+
+      toast({
+        title: "Summary Generated Successfully",
+        description: "Your patient-friendly summary is ready for review.",
+      });
+
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      toast({
+        title: "Generation Failed",
+        description: error.message || "Failed to generate summary. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
-
-  const mockSummary = `
-  Dear John,
-
-  Thank you for your recent visit to City General Hospital. Here's a simple explanation of your care and what happens next:
-
-  **Why you came to the hospital:**
-  You came in because you were having chest pain and trouble breathing.
-
-  **What we found:**
-  Our tests showed that you had a minor heart attack. This happens when one of the blood vessels to your heart gets blocked.
-
-  **What we did to help:**
-  - We gave you medicine to help your heart and prevent blood clots
-  - We did a procedure to open the blocked blood vessel
-  - We monitored your heart for 3 days to make sure you were getting better
-
-  **How you're doing now:**
-  Your heart is working much better now. Your tests before leaving showed good improvement.
-
-  **What you need to do at home:**
-  - Take your new heart medicines exactly as prescribed
-  - Rest for the first week, then slowly increase your activity
-  - Come back if you have chest pain, shortness of breath, or feel dizzy
-  - Follow up with Dr. Smith in 1 week
-
-  **Important medicines to take:**
-  - Aspirin 81mg once daily
-  - Metoprolol 50mg twice daily
-  - Atorvastatin 40mg once daily at bedtime
-
-  If you have any questions or concerns, please call us at (555) 123-4567.
-
-  Take care,
-  The Care Team at City General Hospital
-  `;
 
   if (isProcessed) {
     return (
@@ -157,21 +186,28 @@ const NewSummary = () => {
                   Patient Summary Preview
                 </CardTitle>
                 <CardDescription>
-                  AI-generated summary in patient-friendly language
+                  AI-generated summary in patient-friendly language (9th grade reading level)
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="bg-gray-50 p-6 rounded-lg">
                   <div className="prose max-w-none">
                     <div className="whitespace-pre-line text-gray-800">
-                      {mockSummary}
+                      {generatedSummary}
                     </div>
                   </div>
                 </div>
                 <div className="mt-4 flex space-x-3">
-                  <Button variant="outline" className="flex items-center">
+                  <Button 
+                    variant="outline" 
+                    className="flex items-center"
+                    onClick={() => {
+                      setIsProcessed(false);
+                      setGeneratedSummary("");
+                    }}
+                  >
                     <Edit className="h-4 w-4 mr-2" />
-                    Edit Summary
+                    Generate New Summary
                   </Button>
                   <Button className="bg-blue-600 hover:bg-blue-700 flex items-center">
                     <Send className="h-4 w-4 mr-2" />
@@ -211,16 +247,16 @@ const NewSummary = () => {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Processing Time:</span>
-                  <span className="font-medium">2.3 minutes</span>
+                  <span className="text-gray-600">AI Model:</span>
+                  <span className="font-medium">Gemini 2.0 Flash</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Readability Score:</span>
-                  <span className="font-medium">Grade 8 Level</span>
+                  <span className="text-gray-600">Reading Level:</span>
+                  <span className="font-medium">Grade 9</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Word Count:</span>
-                  <span className="font-medium">287 words</span>
+                  <span className="font-medium">{generatedSummary.split(' ').length} words</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Status:</span>
@@ -239,7 +275,7 @@ const NewSummary = () => {
       <div className="space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Processing Summary</h1>
-          <p className="text-gray-600">Our AI is converting your discharge summary to patient-friendly language...</p>
+          <p className="text-gray-600">Gemini 2.0 Flash is converting your discharge summary to patient-friendly language...</p>
         </div>
 
         <Card className="max-w-2xl mx-auto">
@@ -247,16 +283,16 @@ const NewSummary = () => {
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-6"></div>
             <h3 className="text-lg font-semibold mb-2">Generating Patient Summary</h3>
             <p className="text-gray-600 mb-6">
-              This typically takes 2-3 minutes. We're analyzing the medical content and translating it into clear, understandable language.
+              Converting complex medical language to 9th-grade reading level with empathetic tone...
             </p>
             <div className="space-y-2 text-sm text-gray-500">
               <div className="flex items-center justify-center">
                 <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
-                Files uploaded and validated
+                Files processed and content extracted
               </div>
               <div className="flex items-center justify-center">
                 <Clock className="h-4 w-4 text-blue-600 mr-2" />
-                AI analyzing medical content...
+                AI analyzing and converting medical content...
               </div>
             </div>
           </CardContent>
@@ -270,7 +306,7 @@ const NewSummary = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Create New Summary</h1>
         <p className="text-gray-600 mt-1">
-          Upload discharge summaries to generate patient-friendly versions
+          Upload discharge summaries to generate patient-friendly versions using Gemini 2.0 Flash
         </p>
       </div>
 
@@ -326,14 +362,7 @@ const NewSummary = () => {
                     className="hidden"
                     id="file-upload"
                   />
-                  <Button 
-                    variant="outline" 
-                    className="cursor-pointer" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleUploadAreaClick();
-                    }}
-                  >
+                  <Button variant="outline" className="cursor-pointer">
                     Choose Files
                   </Button>
                 </div>
@@ -374,12 +403,12 @@ const NewSummary = () => {
             <CardHeader>
               <CardTitle>Additional Notes (Optional)</CardTitle>
               <CardDescription>
-                Add any specific instructions or context for the AI summary generation
+                Add specific instructions for the AI (e.g., focus on medication changes, emphasize follow-up importance)
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="e.g., Focus on medication changes, emphasize follow-up importance, use simpler language for elderly patient..."
+                placeholder="e.g., Patient is elderly and needs extra medication explanations, emphasize the importance of follow-up appointments..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 className="min-h-[100px]"
@@ -394,18 +423,18 @@ const NewSummary = () => {
             <CardHeader>
               <CardTitle>Generate Summary</CardTitle>
               <CardDescription>
-                Convert discharge documents to patient-friendly language
+                Convert to patient-friendly language using Gemini 2.0 Flash
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <Button
                 onClick={handleGenerateSummary}
-                disabled={files.length === 0}
+                disabled={files.length === 0 || isProcessing}
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 size="lg"
               >
                 <FileText className="h-5 w-5 mr-2" />
-                Generate Summary
+                {isProcessing ? 'Processing...' : 'Generate Summary'}
               </Button>
               
               {files.length === 0 && (
@@ -419,26 +448,32 @@ const NewSummary = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>What happens next?</CardTitle>
+              <CardTitle>AI Features</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex items-start space-x-3">
                 <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
-                  <span className="text-xs font-bold">1</span>
+                  <span className="text-xs font-bold">✓</span>
                 </div>
-                <span>AI analyzes the uploaded documents</span>
+                <span>9th-grade reading level conversion</span>
               </div>
               <div className="flex items-start space-x-3">
                 <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
-                  <span className="text-xs font-bold">2</span>
+                  <span className="text-xs font-bold">✓</span>
                 </div>
-                <span>Converts to patient-friendly language</span>
+                <span>Explains medication purposes</span>
               </div>
               <div className="flex items-start space-x-3">
                 <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
-                  <span className="text-xs font-bold">3</span>
+                  <span className="text-xs font-bold">✓</span>
                 </div>
-                <span>Review and send to patient</span>
+                <span>Empathetic, supportive tone</span>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
+                  <span className="text-xs font-bold">✓</span>
+                </div>
+                <span>Structured sections for clarity</span>
               </div>
             </CardContent>
           </Card>
