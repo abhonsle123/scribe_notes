@@ -99,15 +99,31 @@ const NewSummary = () => {
 
   const extractTextFromFile = async (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const text = e.target?.result as string;
-        // For now, we'll use the file content as-is for text files
-        // In a production app, you'd want proper PDF/DOC parsing
-        resolve(text || `[Content from ${file.name}]`);
-      };
-      reader.onerror = () => reject(new Error('Failed to read file'));
-      reader.readAsText(file);
+      if (file.type === "application/pdf") {
+        // For PDF files, we'll send the raw content and let the AI handle it
+        // This is a simple approach - in production you'd want proper PDF parsing
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const arrayBuffer = e.target?.result as ArrayBuffer;
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+          resolve(`[PDF Content from ${file.name}]\n${binaryString}`);
+        };
+        reader.onerror = () => reject(new Error('Failed to read PDF file'));
+        reader.readAsArrayBuffer(file);
+      } else if (file.type.startsWith("image/")) {
+        // For images, we'll include a note about the image
+        resolve(`[Image file: ${file.name} - Content would require OCR processing]`);
+      } else {
+        // For text-based files
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target?.result as string;
+          resolve(text || `[Content from ${file.name}]`);
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsText(file);
+      }
     });
   };
 
@@ -140,6 +156,8 @@ const NewSummary = () => {
         throw new Error("No readable content found in the uploaded files");
       }
 
+      console.log('Sending to API:', { textLength: combinedText.length, hasNotes: !!notes });
+
       // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('convert-to-patient-friendly', {
         body: {
@@ -147,6 +165,8 @@ const NewSummary = () => {
           additionalNotes: notes
         }
       });
+
+      console.log('API Response:', { data, error });
 
       if (error) {
         throw error;
