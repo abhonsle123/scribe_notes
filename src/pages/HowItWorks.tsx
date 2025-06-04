@@ -39,7 +39,7 @@ const HowItWorks = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-slate-600 text-lg leading-relaxed">
-                  Securely upload discharge summaries, visit reports, or any medical documentation through our HIPAA-compliant platform. Our system accepts multiple file formats including PDF, DOC, and direct text input.
+                  Securely upload discharge summaries, visit reports, or any medical documentation through our secure platform. Our system accepts multiple file formats including PDF, DOC, and direct text input.
                 </p>
               </CardContent>
             </Card>

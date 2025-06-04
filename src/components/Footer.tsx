@@ -20,7 +20,7 @@ const Footer = () => {
               for providers and patients.
             </p>
             <p className="text-sm text-gray-400">
-              HIPAA compliant • Secure • Trusted by healthcare providers
+              Secure • Trusted by healthcare providers
             </p>
           </div>
 

@@ -127,7 +127,7 @@ const Index = () => {
               </div>
               <h3 className="text-xl font-semibold text-slate-900 mb-3">Upload</h3>
               <p className="text-slate-600">
-                Securely upload discharge summaries or visit reports through our HIPAA-compliant platform
+                Securely upload discharge summaries or visit reports through our secure platform
               </p>
             </div>
             
@@ -256,23 +256,17 @@ const Index = () => {
       {/* Security & Compliance */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 to-purple-50">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-slate-900 mb-8">Secure & HIPAA Compliant</h2>
+          <h2 className="text-3xl font-bold text-slate-900 mb-8">Secure & Reliable</h2>
           
-          <div className="grid md:grid-cols-3 gap-8 mb-12">
+          <div className="grid md:grid-cols-2 gap-8 mb-12">
             <div className="flex flex-col items-center">
               <Shield className="h-12 w-12 text-blue-600 mb-4" />
-              <h3 className="font-semibold text-slate-900 mb-2">HIPAA Compliant</h3>
-              <p className="text-slate-600 text-sm">Full compliance with healthcare privacy regulations</p>
+              <h3 className="font-semibold text-slate-900 mb-2">Enterprise Security</h3>
+              <p className="text-slate-600 text-sm">Industry-leading security standards and data protection</p>
             </div>
             
             <div className="flex flex-col items-center">
               <CheckCircle className="h-12 w-12 text-green-600 mb-4" />
-              <h3 className="font-semibold text-slate-900 mb-2">SOC 2 Certified</h3>
-              <p className="text-slate-600 text-sm">Industry-leading security and availability standards</p>
-            </div>
-            
-            <div className="flex flex-col items-center">
-              <Shield className="h-12 w-12 text-purple-600 mb-4" />
               <h3 className="font-semibold text-slate-900 mb-2">End-to-End Encryption</h3>
               <p className="text-slate-600 text-sm">Your data is protected at every step</p>
             </div>

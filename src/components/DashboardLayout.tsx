@@ -85,7 +85,7 @@ const DashboardLayout = () => {
             <>
               <div className="flex items-center space-x-2 mb-3">
                 <Shield className="h-4 w-4 text-green-600" />
-                <span className="text-xs text-green-600 font-medium">HIPAA Compliant</span>
+                <span className="text-xs text-green-600 font-medium">Secure Platform</span>
               </div>
               <div className="mb-3">
                 <p className="text-sm font-medium text-gray-700">
