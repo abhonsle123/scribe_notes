@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -19,7 +20,7 @@ import {
   Eye,
   Download
 } from "lucide-react";
-import { processFile } from "@/utils/fileProcessor";
+import { extractTextFromFile, validateFileForProcessing } from "@/utils/fileProcessor";
 import { EmailSummaryForm } from "@/components/EmailSummaryForm";
 
 const NewSummary = () => {
@@ -91,6 +92,19 @@ const NewSummary = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
+      console.log('File selected:', selectedFile.name, selectedFile.type);
+      
+      // Validate file
+      const validation = validateFileForProcessing(selectedFile);
+      if (!validation.isValid) {
+        toast({
+          title: "Invalid File",
+          description: validation.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
       setFile(selectedFile);
       setSummary("");
       setExtractedText("");
@@ -99,19 +113,28 @@ const NewSummary = () => {
   };
 
   const processDocument = async () => {
-    if (!file || !user) return;
+    if (!file || !user) {
+      console.log('Missing file or user:', { file: !!file, user: !!user });
+      return;
+    }
 
     setProcessing(true);
+    console.log('Starting document processing for:', file.name);
     
     try {
       // Process the file to extract text
-      const text = await processFile(file);
+      console.log('Extracting text from file...');
+      const text = await extractTextFromFile(file);
+      console.log('Text extracted, length:', text.length);
       setExtractedText(text);
 
       // Get user's template
+      console.log('Getting user template...');
       const userTemplate = await getUserTemplate();
+      console.log('User template:', userTemplate ? 'Found' : 'Not found');
       
       // Convert to patient-friendly summary using the template
+      console.log('Calling edge function to convert text...');
       const { data, error } = await supabase.functions.invoke('convert-to-patient-friendly', {
         body: { 
           text,
@@ -120,9 +143,11 @@ const NewSummary = () => {
       });
 
       if (error) {
+        console.error('Edge function error:', error);
         throw error;
       }
 
+      console.log('Summary generated successfully');
       const generatedSummary = data.summary;
       setSummary(generatedSummary);
       
@@ -131,6 +156,7 @@ const NewSummary = () => {
       setPatientName(extractedPatientName);
 
       // Save to database
+      console.log('Saving summary to database...');
       const { error: saveError } = await supabase
         .from('summaries')
         .insert({
@@ -142,6 +168,13 @@ const NewSummary = () => {
 
       if (saveError) {
         console.error('Error saving summary:', saveError);
+        toast({
+          title: "Warning",
+          description: "Summary generated but could not be saved to history.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Summary saved successfully');
       }
 
       toast({
@@ -153,7 +186,7 @@ const NewSummary = () => {
       console.error('Error processing document:', error);
       toast({
         title: "Error",
-        description: "Failed to process the document. Please try again.",
+        description: `Failed to process the document: ${error.message || 'Please try again.'}`,
         variant: "destructive",
       });
     } finally {
@@ -181,15 +214,6 @@ const NewSummary = () => {
     URL.revokeObjectURL(url);
   };
 
-  const getMethodIcon = (method: string) => {
-    switch (method) {
-      case "Email": return <Mail className="h-4 w-4" />;
-      case "SMS": return <MessageSquare className="h-4 w-4" />;
-      case "Patient Portal": return <Globe className="h-4 w-4" />;
-      default: return <Send className="h-4 w-4" />;
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
@@ -209,22 +233,28 @@ const NewSummary = () => {
         <CardHeader>
           <CardTitle>Upload Document</CardTitle>
           <CardDescription>
-            Select a file to upload and convert to a patient-friendly summary.
+            Select a PDF, Word document, or text file to upload and convert to a patient-friendly summary.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-4">
             <Label htmlFor="upload-file" className="cursor-pointer">
-              <div className="border-2 border-dashed rounded-lg p-4 text-center">
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                 {file ? (
                   <>
-                    <FileText className="h-6 w-6 mx-auto text-gray-500 mb-2" />
-                    <p className="text-sm text-gray-700">{file.name}</p>
+                    <FileText className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+                    <p className="text-sm font-medium text-gray-700">{file.name}</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {(file.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
                   </>
                 ) : (
                   <>
-                    <Upload className="h-6 w-6 mx-auto text-gray-500 mb-2" />
-                    <p className="text-sm text-gray-500">Click to upload a file</p>
+                    <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                    <p className="text-sm text-gray-600 font-medium">Click to upload a file</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      PDF, Word, or Text files up to 10MB
+                    </p>
                   </>
                 )}
               </div>
@@ -234,6 +264,7 @@ const NewSummary = () => {
               id="upload-file"
               className="hidden"
               onChange={handleFileChange}
+              accept=".pdf,.doc,.docx,.txt"
             />
             {file && (
               <Button onClick={() => setFile(null)} variant="outline">
@@ -241,20 +272,33 @@ const NewSummary = () => {
               </Button>
             )}
           </div>
+
+          {extractedText && (
+            <div className="mt-4">
+              <Label>Extracted Text Preview</Label>
+              <Textarea 
+                value={extractedText.substring(0, 500) + (extractedText.length > 500 ? '...' : '')} 
+                readOnly 
+                className="mt-2 text-sm bg-gray-50"
+                rows={4}
+              />
+            </div>
+          )}
+
           <Button
             onClick={processDocument}
             disabled={processing || !file}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="w-full bg-blue-600 hover:bg-blue-700"
           >
             {processing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
+                Processing Document...
               </>
             ) : (
               <>
                 <FileText className="mr-2 h-4 w-4" />
-                Generate Summary
+                Generate Patient-Friendly Summary
               </>
             )}
           </Button>
@@ -296,15 +340,21 @@ const NewSummary = () => {
             {patientName && (
               <div className="mb-2">
                 <Label>Patient Name</Label>
-                <Input type="text" value={patientName} readOnly />
+                <Input 
+                  type="text" 
+                  value={patientName} 
+                  onChange={(e) => setPatientName(e.target.value)}
+                  className="mt-1"
+                />
               </div>
             )}
             <div className="space-y-2">
               <Label>Summary</Label>
               <Textarea 
                 value={summary} 
+                onChange={(e) => setSummary(e.target.value)}
                 readOnly={previewMode}
-                className="min-h-[150px] font-mono"
+                className="min-h-[200px] font-mono text-sm"
               />
             </div>
             <div className="flex justify-end">

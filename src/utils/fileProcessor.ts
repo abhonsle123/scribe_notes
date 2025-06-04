@@ -1,23 +1,30 @@
+
 export const extractTextFromFile = async (file: File): Promise<string> => {
   try {
+    console.log('Processing file:', file.name, 'Type:', file.type, 'Size:', file.size);
+
     // Handle text files directly
     if (file.type === 'text/plain') {
+      console.log('Processing as text file');
       return await file.text();
     }
 
     // For PDF files - skip client-side extraction, let the AI handle it
     if (file.type === 'application/pdf') {
+      console.log('Processing as PDF file');
       return `[PDF file: ${file.name}]\n\nThis PDF will be processed directly by the AI. The AI can handle complex PDFs with images, tables, and formatting automatically.`;
     }
 
     // Handle Word documents - basic text extraction
     if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
         file.type === 'application/msword') {
+      console.log('Processing as Word document');
       return await extractTextFromWord(file);
     }
 
     // Handle images - prompt user to use OCR tools or convert to text
     if (file.type.startsWith('image/')) {
+      console.log('Processing as image file');
       return `[Image file: ${file.name}]\n\nNote: This appears to be an image file. For best results with medical documents, please:\n1. Use an OCR tool to convert the image to text first\n2. Copy and paste the text content into the notes field below\n3. Or convert the image to a PDF with selectable text\n\nThis will ensure the AI can properly process your discharge summary content.`;
     }
 
@@ -28,11 +35,9 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
   }
 };
 
-// Export processFile as an alias for extractTextFromFile
-export const processFile = extractTextFromFile;
-
 const extractTextFromWord = async (file: File): Promise<string> => {
   try {
+    console.log('Extracting text from Word document');
     const arrayBuffer = await file.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
@@ -84,11 +89,14 @@ const extractTextFromWord = async (file: File): Promise<string> => {
       .trim();
     
     if (extractedText.length > 50 && extractedText.split(' ').length > 10) {
+      console.log('Successfully extracted text from Word document, length:', extractedText.length);
       return `Word Document Content from ${file.name}:\n\n${extractedText}`;
     } else {
+      console.log('Could not extract sufficient text from Word document');
       return `[Word Document: ${file.name}]\n\nUnable to extract readable text from this Word document.\n\n**To proceed, please:**\n\n✅ **Copy and paste the text directly**\n- Open the Word document\n- Select all text (Ctrl/Cmd + A)\n- Copy the text (Ctrl/Cmd + C) \n- Paste it into the "Additional Notes" field below\n\n✅ **Save as text file**\n- In Word, go to File > Save As\n- Choose "Plain Text (*.txt)" format\n- Upload the .txt file instead\n\nThis will ensure the AI can properly process your discharge summary content.`;
     }
   } catch (error) {
+    console.error('Error processing Word document:', error);
     throw new Error(`Failed to process Word document: ${error.message}`);
   }
 };
@@ -110,8 +118,11 @@ export const validateFileForProcessing = (file: File): { isValid: boolean; error
   }
 
   if (!allowedTypes.includes(file.type)) {
-    return { isValid: false, error: 'File type not supported' };
+    return { isValid: false, error: 'File type not supported. Please upload PDF, Word, or text files.' };
   }
 
   return { isValid: true };
 };
+
+// Export processFile as an alias for extractTextFromFile
+export const processFile = extractTextFromFile;
