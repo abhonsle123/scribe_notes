@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -186,24 +187,6 @@ const Index = () => {
     }
   ];
 
-  const steps = [
-    {
-      title: "Upload Report",
-      description: "Upload the medical discharge summary you want to transform.",
-      gradient: "from-turquoise to-sky-blue"
-    },
-    {
-      title: "AI Simplification",
-      description: "Our AI simplifies the medical terms and extracts key information.",
-      gradient: "from-sky-blue to-lavender"
-    },
-    {
-      title: "Share with Patient",
-      description: "Share the easy-to-understand summary with your patient.",
-      gradient: "from-lavender to-turquoise"
-    }
-  ];
-
   const trustIndicators = [
     {
       icon: Shield,
@@ -369,43 +352,8 @@ const Index = () => {
         </div>
       </section>
 
-      {/* How It Works Section */}
-      <section className="py-20 bg-gradient-to-r from-turquoise/5 to-sky-blue/5">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
-              Simple Process, Powerful Results
-            </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Transform medical reports in just a few clicks
-            </p>
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {steps.map((step, index) => (
-              <div key={index} className="relative">
-                <Card className="glass-card border-0 text-center hover-lift group h-full">
-                  <CardContent className="p-8">
-                    <div className={`w-16 h-16 bg-gradient-to-br ${step.gradient} rounded-2xl mx-auto mb-6 flex items-center justify-center text-white font-bold text-xl group-hover:scale-110 transition-transform duration-300`}>
-                      {index + 1}
-                    </div>
-                    <h3 className="text-xl font-semibold text-gray-800 mb-4">{step.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">{step.description}</p>
-                  </CardContent>
-                </Card>
-                {index < steps.length - 1 && (
-                  <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2">
-                    <ArrowRight className="h-8 w-8 text-turquoise/30" />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Trust Indicators Section */}
-      <section className="py-20">
+      <section className="py-20 bg-gradient-to-r from-turquoise/5 to-sky-blue/5">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
