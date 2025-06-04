@@ -40,12 +40,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Sending summary email to:', patientEmail);
 
-    // Use Resend's verified onboarding domain for reliable delivery
-    const fromAddress = "onboarding@resend.dev";
-
     // Send email using Resend
     const emailResponse = await resend.emails.send({
-      from: `Liaise Health <${fromAddress}>`,
+      from: `Liaise Health <support@liaise.com>`,
       to: [patientEmail],
       subject: "Your Visit Summary from Liaise",
       html: `
