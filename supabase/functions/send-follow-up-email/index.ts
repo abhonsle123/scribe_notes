@@ -41,7 +41,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Generate a unique session ID for anonymous feedback tracking
     const sessionId = crypto.randomUUID();
-    const feedbackUrl = `${Deno.env.get('SITE_URL') || 'https://your-domain.com'}/feedback?session=${sessionId}&summary=${summaryId}`;
+    
+    // Get the current site URL from environment or use a default
+    const siteUrl = Deno.env.get('SITE_URL') || 'https://cb8d86d1-de8e-43f9-a05b-3459f4f1b848.lovableproject.com';
+    const feedbackUrl = `${siteUrl}/feedback?session=${sessionId}&summary=${summaryId}`;
+
+    console.log('Generated feedback URL:', feedbackUrl);
 
     // Send follow-up email using Resend
     const emailResponse = await resend.emails.send({
@@ -126,7 +131,8 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ 
       success: true, 
       emailId: emailResponse.data?.id,
-      sessionId: sessionId
+      sessionId: sessionId,
+      feedbackUrl: feedbackUrl
     }), {
       status: 200,
       headers: {

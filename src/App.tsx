@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -51,6 +52,8 @@ const App = () => (
             <Route path="/faqs" element={<FAQs />} />
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
+            
+            {/* Public feedback route - no authentication required */}
             <Route path="/feedback" element={<Feedback />} />
             
             {/* Protected Dashboard Routes */}
