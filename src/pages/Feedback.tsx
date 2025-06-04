@@ -107,20 +107,26 @@ const Feedback = () => {
     setIsSubmitting(true);
 
     try {
+      // Prepare the feedback data, ensuring we don't include user_id
+      const feedbackData = {
+        session_id: sessionId,
+        summary_id: summaryId || null,
+        overall_rating: responses.overallSatisfaction > 0 ? responses.overallSatisfaction : null,
+        clarity_rating: responses.readabilityRating > 0 ? responses.readabilityRating : null,
+        usefulness_rating: responses.usefulnessRating > 0 ? responses.usefulnessRating : null,
+        accuracy_rating: responses.accuracyRating > 0 ? responses.accuracyRating : null,
+        recommendation_rating: responses.chatboxExperience > 0 ? responses.chatboxExperience : null,
+        open_feedback: openFeedback.trim() || null
+      };
+
+      console.log('Submitting feedback data:', feedbackData);
+
       const { error } = await supabase
         .from('feedback')
-        .insert({
-          session_id: sessionId,
-          summary_id: summaryId,
-          overall_rating: responses.overallSatisfaction || null,
-          clarity_rating: responses.readabilityRating || null,
-          usefulness_rating: responses.usefulnessRating || null,
-          accuracy_rating: responses.accuracyRating || null,
-          recommendation_rating: responses.chatboxExperience || null,
-          open_feedback: openFeedback.trim() || null
-        });
+        .insert(feedbackData);
 
       if (error) {
+        console.error('Supabase error:', error);
         throw error;
       }
 
