@@ -19,7 +19,10 @@ import {
   Mail,
   Stethoscope,
   Brain,
-  Activity
+  Activity,
+  Mic,
+  FileCheck,
+  Bot
 } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -76,7 +79,7 @@ const Index = () => {
   }, [hasAnimated, loading]);
 
   const animateNumbers = () => {
-    const duration = 2000; // 2 seconds
+    const duration = 1300; // Changed from 2000ms to 1300ms
     const frameRate = 60;
     const totalFrames = (duration / 1000) * frameRate;
     let frame = 0;
@@ -164,21 +167,21 @@ const Index = () => {
 
   const features = [
     {
-      icon: Stethoscope,
-      title: "Medical Term Simplification",
-      description: "Instantly translates complex medical jargon into easy-to-understand language.",
+      icon: Mic,
+      title: "AI Vocal Transcription & EHR Integration",
+      description: "Automatically transcribe voice recordings and populate EHR notes with AI-powered accuracy and efficiency.",
       gradient: "from-turquoise to-sky-blue"
     },
     {
-      icon: Brain,
-      title: "AI-Powered Summarization",
-      description: "Uses advanced AI to extract key information and create concise patient summaries.",
+      icon: FileCheck,
+      title: "Customizable AI Discharge Reports",
+      description: "Generate personalized after-visit summaries with direct patient delivery, tailored to individual needs and medical complexity.",
       gradient: "from-sky-blue to-lavender"
     },
     {
-      icon: Activity,
-      title: "Real-Time Generation",
-      description: "Generates summaries in real-time, allowing for immediate sharing with patients.",
+      icon: Bot,
+      title: "AI Patient Care Chatbox",
+      description: "Enable patients to ask questions about their care plans and procedures, with AI providing immediate, accurate responses for both patients and providers.",
       gradient: "from-lavender to-turquoise"
     }
   ];
