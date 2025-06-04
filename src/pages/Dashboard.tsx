@@ -213,38 +213,47 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Welcome Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            Welcome back, {user?.email?.split('@')[0] || 'Doctor'}
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Transform complex medical reports into patient-friendly summaries
-          </p>
+      <div className="relative overflow-hidden rounded-3xl gradient-bg p-8">
+        <div className="relative z-10">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Welcome back, {user?.email?.split('@')[0] || 'Doctor'}
+              </h1>
+              <p className="text-xl text-gray-600">
+                Ready to create clear, patient-friendly summaries?
+              </p>
+            </div>
+            <Link to="/dashboard/new-summary">
+              <Button size="lg" className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-4 rounded-full transition-all duration-300 hover:scale-105">
+                <Plus className="h-5 w-5 mr-2" />
+                New Summary
+              </Button>
+            </Link>
+          </div>
         </div>
-        <Link to="/dashboard/new-summary">
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-5 w-5 mr-2" />
-            Start New Summary
-          </Button>
-        </Link>
+        <div className="absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br from-teal-200 to-blue-200 rounded-full opacity-20"></div>
+        <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full opacity-15"></div>
       </div>
 
-      {/* Quick Actions */}
-      <Card className="border-2 border-dashed border-blue-200 bg-blue-50">
-        <CardHeader className="text-center">
-          <CardTitle className="text-blue-900">Ready to create a summary?</CardTitle>
-          <CardDescription className="text-blue-700">
+      {/* Quick Action Card */}
+      <Card className="glass-card border-0 hover-lift">
+        <CardHeader className="text-center pb-4">
+          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-teal-400 to-blue-500 rounded-full flex items-center justify-center mb-4">
+            <FileText className="h-10 w-10 text-white" />
+          </div>
+          <CardTitle className="text-2xl text-gray-900">Transform Medical Reports</CardTitle>
+          <CardDescription className="text-lg text-gray-600">
             Upload a discharge summary and we'll convert it to patient-friendly language in minutes
           </CardDescription>
         </CardHeader>
         <CardContent className="text-center">
           <Link to="/dashboard/new-summary">
-            <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
-              <FileText className="h-5 w-5 mr-2" />
-              Upload Discharge Summary
+            <Button size="lg" className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white px-8 py-4 rounded-full text-lg transition-all duration-300 hover:scale-105">
+              <Upload className="h-5 w-5 mr-2" />
+              Upload Document
             </Button>
           </Link>
         </CardContent>
@@ -253,28 +262,30 @@ const Dashboard = () => {
       {/* Analytics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {analytics.map((metric, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">
+          <Card key={index} className="glass-card border-0 hover-lift group">
+            <CardHeader className="flex flex-row items-center justify-between pb-3">
+              <CardTitle className="text-sm font-medium text-gray-600 group-hover:text-gray-800 transition-colors">
                 {metric.title}
               </CardTitle>
-              <metric.icon className="h-4 w-4 text-gray-400" />
+              <div className="p-2 bg-gradient-to-br from-teal-100 to-blue-100 rounded-xl">
+                <metric.icon className="h-5 w-5 text-teal-600" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900 mb-1">
+              <div className="text-3xl font-bold text-gray-900 mb-2">
                 {metric.value}
               </div>
               <div className="flex items-center text-sm">
-                <span className={`font-medium ${
+                <span className={`font-medium px-2 py-1 rounded-full text-xs ${
                   metric.title === "Unsent Drafts (3 days)" && stats.unsentDrafts > 0 
-                    ? "text-orange-600" 
+                    ? "bg-orange-100 text-orange-700" 
                     : metric.title === "Patient Satisfaction" && metric.trend === "No data"
-                    ? "text-gray-500"
-                    : "text-green-600"
+                    ? "bg-gray-100 text-gray-600"
+                    : "bg-green-100 text-green-700"
                 }`}>
                   {metric.trend}
                 </span>
-                <span className="text-gray-500 ml-1">{metric.description}</span>
+                <span className="text-gray-500 ml-2">{metric.description}</span>
               </div>
             </CardContent>
           </Card>
@@ -282,49 +293,64 @@ const Dashboard = () => {
       </div>
 
       {/* Recent Activity */}
-      <Card>
+      <Card className="glass-card border-0">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Clock className="h-5 w-5 mr-2" />
+          <CardTitle className="flex items-center text-2xl">
+            <div className="p-2 bg-gradient-to-br from-teal-100 to-blue-100 rounded-xl mr-3">
+              <Clock className="h-6 w-6 text-teal-600" />
+            </div>
             Recent Activity
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-lg">
             Latest summary generations and delivery status
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {loading ? (
-              <div className="text-center py-8 text-gray-500">Loading recent activity...</div>
+              <div className="text-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent mx-auto mb-4"></div>
+                <p className="text-gray-500">Loading recent activity...</p>
+              </div>
             ) : recentSummaries.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                No summaries created yet. <Link to="/dashboard/new-summary" className="text-blue-600 hover:underline">Create your first summary</Link>
+              <div className="text-center py-12">
+                <div className="w-24 h-24 bg-gradient-to-br from-teal-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-12 w-12 text-teal-500" />
+                </div>
+                <p className="text-gray-500 mb-4">No summaries created yet</p>
+                <Link to="/dashboard/new-summary">
+                  <Button className="bg-teal-500 hover:bg-teal-600 text-white rounded-full">
+                    Create your first summary
+                  </Button>
+                </Link>
               </div>
             ) : (
               recentSummaries.map((summary) => (
-                <div key={summary.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div key={summary.id} className="flex items-center justify-between p-6 bg-gradient-to-r from-white to-gray-50 rounded-2xl border border-gray-100 hover-lift">
                   <div className="flex items-center space-x-4">
-                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                    <div className="p-3 bg-gradient-to-br from-teal-100 to-blue-100 rounded-xl">
                       {getMethodIcon(getDeliveryMethod(summary))}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">{summary.patient_name}</p>
-                      <p className="text-sm text-gray-600">Summary Generated</p>
+                      <p className="font-semibold text-gray-900 text-lg">{summary.patient_name}</p>
+                      <p className="text-gray-600">Summary Generated</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-4">
-                    <Badge className={getStatusColor(summary.sent_at ? "delivered" : "draft")}>
+                    <Badge className={`px-3 py-1 rounded-full font-medium ${getStatusColor(summary.sent_at ? "delivered" : "draft")}`}>
                       {summary.sent_at ? "delivered" : "draft"}
                     </Badge>
-                    <span className="text-sm text-gray-500">{getTimeAgo(summary.created_at)}</span>
+                    <span className="text-sm text-gray-500 font-medium">{getTimeAgo(summary.created_at)}</span>
                   </div>
                 </div>
               ))
             )}
           </div>
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center">
             <Link to="/dashboard/summaries">
-              <Button variant="outline">View All Summaries</Button>
+              <Button variant="outline" className="border-teal-200 text-teal-600 hover:bg-teal-50 rounded-full px-6 py-2">
+                View All Summaries
+              </Button>
             </Link>
           </div>
         </CardContent>
