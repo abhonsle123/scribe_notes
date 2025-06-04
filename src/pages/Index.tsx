@@ -29,7 +29,7 @@ interface RealStats {
   totalSummaries: number;
   patientsImpacted: number;
   averageRating: number | null;
-  totalFeedback: number;
+  providersUsingLiaise: number;
 }
 
 const Index = () => {
@@ -37,30 +37,36 @@ const Index = () => {
     totalSummaries: 0,
     patientsImpacted: 0,
     averageRating: null,
-    totalFeedback: 0
+    providersUsingLiaise: 0
   });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchRealStats();
+    fetchGlobalStats();
   }, []);
 
-  const fetchRealStats = async () => {
+  const fetchGlobalStats = async () => {
     try {
-      // Fetch total summaries
+      // Fetch all summaries from all accounts
       const { data: summariesData, error: summariesError } = await supabase
         .from('summaries')
-        .select('id, patient_email, sent_at');
+        .select('id, patient_email, sent_at, user_id');
 
       if (summariesError) {
         console.error('Error fetching summaries:', summariesError);
       }
 
-      // Count unique patients impacted (summaries with emails that were sent)
+      // Count total summaries across all accounts
+      const totalSummaries = summariesData?.length || 0;
+
+      // Count unique patients impacted (summaries with emails that were sent) across all accounts
       const sentSummariesWithEmail = summariesData?.filter(s => s.sent_at && s.patient_email) || [];
       const uniqueEmails = new Set(sentSummariesWithEmail.map(s => s.patient_email));
 
-      // Fetch feedback data
+      // Count unique providers (users) who have created summaries
+      const uniqueProviders = new Set(summariesData?.map(s => s.user_id) || []);
+
+      // Fetch feedback data from all accounts
       const { data: feedbackData, error: feedbackError } = await supabase
         .from('feedback')
         .select('overall_rating')
@@ -76,13 +82,13 @@ const Index = () => {
       }
 
       setStats({
-        totalSummaries: summariesData?.length || 0,
+        totalSummaries,
         patientsImpacted: uniqueEmails.size,
         averageRating,
-        totalFeedback: feedbackData?.length || 0
+        providersUsingLiaise: uniqueProviders.size
       });
     } catch (error) {
-      console.error('Error fetching real stats:', error);
+      console.error('Error fetching global stats:', error);
     } finally {
       setLoading(false);
     }
@@ -107,14 +113,14 @@ const Index = () => {
       icon: Star,
       title: "Average Rating",
       value: loading ? "..." : stats.averageRating ? `${stats.averageRating.toFixed(1)}/5` : "No data",
-      description: `From ${stats.totalFeedback} reviews`,
+      description: "User satisfaction score",
       gradient: "from-lavender to-turquoise"
     },
     {
-      icon: TrendingUp,
-      title: "Success Rate",
-      value: loading ? "..." : stats.totalSummaries > 0 ? "98%" : "No data",
-      description: "Successful transformations",
+      icon: Stethoscope,
+      title: "Providers Using Liaise",
+      value: loading ? "..." : stats.providersUsingLiaise.toLocaleString(),
+      description: "Healthcare professionals served",
       gradient: "from-turquoise to-lavender"
     }
   ];
@@ -268,7 +274,7 @@ const Index = () => {
               Real Impact, Real Results
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              See the actual impact Liaise is making in healthcare communication
+              See the actual impact Liaise is making in healthcare communication across all our users
             </p>
           </div>
           
