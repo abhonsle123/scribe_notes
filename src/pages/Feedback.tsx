@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -120,21 +121,9 @@ const Feedback = () => {
       };
 
       console.log('Submitting feedback data:', feedbackData);
+      console.log('Used chatbox response:', responses.usedChatbox);
 
-      // First, let's test if we can connect to the database
-      const { data: testData, error: testError } = await supabase
-        .from('feedback')
-        .select('id')
-        .limit(1);
-
-      if (testError) {
-        console.error('Database connection test failed:', testError);
-        throw new Error('Database connection failed');
-      }
-
-      console.log('Database connection test successful');
-
-      // Now try to insert the feedback
+      // Insert the feedback
       const { data, error } = await supabase
         .from('feedback')
         .insert(feedbackData)
@@ -170,7 +159,7 @@ const Feedback = () => {
           errorMessage = "Permission denied. Please check if the feedback system is properly configured.";
         } else if (error.message.includes('connection')) {
           errorMessage = "Database connection failed. Please check your internet connection and try again.";
-        } else if (error.message.includes('validation')) {
+        } else if (error.message.includes('validation') || error.message.includes('violates check constraint')) {
           errorMessage = "Invalid data provided. Please check your responses and try again.";
         }
       }
@@ -255,7 +244,10 @@ const Feedback = () => {
                 <div className="flex space-x-4">
                   <button
                     type="button"
-                    onClick={() => setResponses(prev => ({ ...prev, usedChatbox: true }))}
+                    onClick={() => {
+                      console.log('Setting usedChatbox to true');
+                      setResponses(prev => ({ ...prev, usedChatbox: true }));
+                    }}
                     className={`px-4 py-2 rounded-lg border-2 transition-all ${
                       responses.usedChatbox === true
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
@@ -266,7 +258,10 @@ const Feedback = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setResponses(prev => ({ ...prev, usedChatbox: false, chatboxExperience: 0 }))}
+                    onClick={() => {
+                      console.log('Setting usedChatbox to false');
+                      setResponses(prev => ({ ...prev, usedChatbox: false, chatboxExperience: 0 }));
+                    }}
                     className={`px-4 py-2 rounded-lg border-2 transition-all ${
                       responses.usedChatbox === false
                         ? 'border-blue-500 bg-blue-50 text-blue-700'
