@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ import {
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface RealStats {
   totalSummaries: number;
@@ -33,6 +34,9 @@ interface RealStats {
 }
 
 const Index = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   const [stats, setStats] = useState<RealStats>({
     totalSummaries: 0,
     patientsImpacted: 0,
@@ -116,6 +120,14 @@ const Index = () => {
       console.error('Error fetching global stats:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartConverting = () => {
+    if (user) {
+      navigate("/dashboard");
+    } else {
+      navigate("/login");
     }
   };
 
@@ -239,12 +251,14 @@ const Index = () => {
               </div>
               
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/login">
-                  <Button size="lg" className="bg-gradient-to-r from-turquoise to-sky-blue hover:from-turquoise/90 hover:to-sky-blue/90 text-white px-8 py-4 rounded-full text-lg transition-all duration-300 hover:scale-105 shadow-lg">
-                    Start Converting Now
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-turquoise to-sky-blue hover:from-turquoise/90 hover:to-sky-blue/90 text-white px-8 py-4 rounded-full text-lg transition-all duration-300 hover:scale-105 shadow-lg"
+                  onClick={handleStartConverting}
+                >
+                  Start Converting Now
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
                 <Link to="/how-it-works">
                   <Button variant="outline" size="lg" className="border-2 border-turquoise/20 text-turquoise hover:bg-turquoise/5 px-8 py-4 rounded-full text-lg transition-all duration-300">
                     See How It Works
@@ -426,12 +440,14 @@ const Index = () => {
               Join healthcare professionals who are already using Liaise to create better patient experiences through clear, understandable medical summaries.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/login">
-                <Button size="lg" className="bg-white text-turquoise hover:bg-gray-50 px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg">
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
+              <Button 
+                size="lg" 
+                className="bg-white text-turquoise hover:bg-gray-50 px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg"
+                onClick={handleStartConverting}
+              >
+                Get Started Free
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
               <Link to="/pricing">
                 <Button variant="outline" size="lg" className="border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-full text-lg transition-all duration-300">
                   View Pricing
