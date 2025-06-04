@@ -33,10 +33,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.id);
+        
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
+          
+          // Create or update user profile when user signs in
+          if (event === 'SIGNED_IN' && session?.user) {
+            try {
+              const { error } = await supabase
+                .from('profiles')
+                .upsert({
+                  id: session.user.id,
+                  email: session.user.email,
+                  full_name: session.user.user_metadata?.full_name,
+                  first_name: session.user.user_metadata?.first_name,
+                  last_name: session.user.user_metadata?.last_name,
+                  updated_at: new Date().toISOString()
+                }, {
+                  onConflict: 'id'
+                });
+              
+              if (error) {
+                console.warn('Profile upsert error (non-critical):', error);
+              }
+            } catch (error) {
+              console.warn('Profile creation error (non-critical):', error);
+            }
+          }
+          
           setLoading(false);
         }
       }
@@ -45,7 +72,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Error getting initial session:', error);
+        }
+        
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
@@ -94,7 +125,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Sign out error:', error);
+    }
   };
 
   const resetPassword = async (email: string) => {

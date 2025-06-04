@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -56,11 +55,20 @@ const PastTranscriptions = () => {
   }, [user]);
 
   const fetchTranscriptions = async () => {
+    if (!user) {
+      console.log('No authenticated user found');
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       
       // Clean up old transcriptions first
-      await supabase.rpc('delete_old_transcriptions');
+      const { error: cleanupError } = await supabase.rpc('delete_old_transcriptions');
+      if (cleanupError) {
+        console.warn('Cleanup error (non-critical):', cleanupError);
+      }
       
       // Fetch transcriptions from the last 3 days
       const threeDaysAgo = new Date();
@@ -76,7 +84,7 @@ const PastTranscriptions = () => {
         console.error('Error fetching transcriptions:', error);
         toast({
           title: "Error",
-          description: "Failed to load transcriptions",
+          description: "Failed to load transcriptions. Please try again.",
           variant: "destructive"
         });
         return;
@@ -87,7 +95,7 @@ const PastTranscriptions = () => {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Failed to load transcriptions",
+        description: "An unexpected error occurred while loading transcriptions.",
         variant: "destructive"
       });
     } finally {
@@ -96,6 +104,15 @@ const PastTranscriptions = () => {
   };
 
   const deleteTranscription = async (id: string) => {
+    if (!user) {
+      toast({
+        title: "Error",
+        description: "You must be logged in to delete transcriptions",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('transcriptions')
@@ -106,7 +123,7 @@ const PastTranscriptions = () => {
         console.error('Error deleting transcription:', error);
         toast({
           title: "Error",
-          description: "Failed to delete transcription",
+          description: "Failed to delete transcription. Please try again.",
           variant: "destructive"
         });
         return;
@@ -123,7 +140,7 @@ const PastTranscriptions = () => {
       console.error('Error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete transcription",
+        description: "An unexpected error occurred while deleting the transcription.",
         variant: "destructive"
       });
     }
@@ -172,6 +189,26 @@ const PastTranscriptions = () => {
           </h1>
           <p className="text-gray-600">Retrieving your recent audio transcriptions...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-white via-purple-50/30 to-pink-50/20 flex items-center justify-center">
+        <Card className="glass-card border-0 shadow-xl text-center p-12 max-w-2xl mx-auto">
+          <CardContent>
+            <div className="w-24 h-24 bg-gradient-to-br from-red-100 to-pink-100 rounded-2xl mx-auto mb-6 flex items-center justify-center">
+              <User className="h-12 w-12 text-red-600" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-800 mb-4">
+              Authentication Required
+            </h3>
+            <p className="text-gray-600 mb-8 text-lg">
+              Please log in to view your transcriptions.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -44,11 +44,39 @@ serve(async (req) => {
   }
 
   try {
+    // Get the authorization header to verify user authentication
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      throw new Error('Authorization header is required');
+    }
+
+    // Initialize Supabase client with the user's auth token
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: {
+          headers: {
+            authorization: authHeader,
+          },
+        },
+      }
+    );
+
+    // Verify the user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      console.error('Authentication error:', authError);
+      throw new Error('User authentication failed');
+    }
+
     const { audio, transcriptionId } = await req.json()
     
     if (!audio || !transcriptionId) {
       throw new Error('Audio data and transcription ID are required')
     }
+
+    console.log(`Processing transcription ${transcriptionId} for user ${user.id}`);
 
     // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio)
@@ -69,29 +97,54 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${await response.text()}`)
+      const errorText = await response.text();
+      console.error('OpenAI API error:', errorText);
+      throw new Error(`OpenAI API error: ${errorText}`);
     }
 
     const result = await response.json()
     const transcriptionText = result.text
 
-    // Update the transcription record with the text
-    const supabase = createClient(
+    console.log(`Transcription completed for ${transcriptionId}, updating database...`);
+
+    // Update the transcription record with the text using service role key for RLS bypass
+    const supabaseServiceRole = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { error: updateError } = await supabase
+    // First verify the transcription belongs to the authenticated user
+    const { data: transcriptionData, error: fetchError } = await supabase
+      .from('transcriptions')
+      .select('user_id')
+      .eq('id', transcriptionId)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching transcription:', fetchError);
+      throw new Error(`Failed to verify transcription ownership: ${fetchError.message}`);
+    }
+
+    if (transcriptionData.user_id !== user.id) {
+      throw new Error('Unauthorized: Transcription does not belong to authenticated user');
+    }
+
+    // Update the transcription with service role to bypass RLS
+    const { error: updateError } = await supabaseServiceRole
       .from('transcriptions')
       .update({ 
         transcription_text: transcriptionText,
         updated_at: new Date().toISOString()
       })
       .eq('id', transcriptionId)
+      .eq('user_id', user.id) // Extra security check
 
     if (updateError) {
-      throw new Error(`Failed to update transcription: ${updateError.message}`)
+      console.error('Database update error:', updateError);
+      throw new Error(`Failed to update transcription: ${updateError.message}`);
     }
+
+    console.log(`Successfully updated transcription ${transcriptionId}`);
 
     return new Response(
       JSON.stringify({ text: transcriptionText, transcriptionId }),
