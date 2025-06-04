@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,10 +24,14 @@ import {
   Users,
   Stethoscope,
   FileText,
-  Clock
+  Clock,
+  Mail,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import { format } from "date-fns";
 import { AudioPlayer } from "@/components/AudioPlayer";
+import { EmailTranscriptionSummaryForm } from "@/components/EmailTranscriptionSummaryForm";
 
 interface Transcription {
   id: string;
@@ -143,6 +148,25 @@ const PastTranscriptions = () => {
     }
   };
 
+  const handleEmailSent = async () => {
+    // Refresh the transcription data to show updated status
+    if (selectedTranscription) {
+      const { data, error } = await supabase
+        .from('transcriptions')
+        .select('*')
+        .eq('id', selectedTranscription.id)
+        .single();
+
+      if (!error && data) {
+        setSelectedTranscription(data);
+        // Also update the main list
+        setTranscriptions(prev => 
+          prev.map(t => t.id === data.id ? data : t)
+        );
+      }
+    }
+  };
+
   const getStatusBadge = (transcription: Transcription) => {
     if (transcription.clinical_notes && transcription.patient_summary) {
       return (
@@ -163,6 +187,30 @@ const PastTranscriptions = () => {
       <Badge className="bg-amber-100 text-amber-700 border-amber-200 rounded-full px-3 py-1">
         <Clock className="h-3 w-3 mr-1" />
         Processing
+      </Badge>
+    );
+  };
+
+  const getPatientSummaryStatusBadge = (transcription: Transcription) => {
+    if (transcription.patient_summary_sent_at) {
+      return (
+        <Badge className="bg-green-100 text-green-700 border-green-200 rounded-full px-2 py-1">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Sent
+        </Badge>
+      );
+    } else if (transcription.patient_summary) {
+      return (
+        <Badge className="bg-orange-100 text-orange-700 border-orange-200 rounded-full px-2 py-1">
+          <Mail className="h-3 w-3 mr-1" />
+          Ready to Send
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-gray-100 text-gray-700 border-gray-200 rounded-full px-2 py-1">
+        <XCircle className="h-3 w-3 mr-1" />
+        Not Available
       </Badge>
     );
   };
@@ -291,14 +339,44 @@ const PastTranscriptions = () => {
                         <Users className="h-6 w-6 text-green-600" />
                       </div>
                       Patient Summary
+                      <div className="ml-auto">
+                        {getPatientSummaryStatusBadge(selectedTranscription)}
+                      </div>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="p-8">
+                  <CardContent className="p-8 space-y-6">
                     <div className="bg-gradient-to-br from-green-50 to-emerald-50/30 p-8 rounded-2xl border border-green-100">
                       <div className="whitespace-pre-line text-gray-800 leading-relaxed">
                         {selectedTranscription.patient_summary}
                       </div>
                     </div>
+                    
+                    {/* Send to Patient Section */}
+                    {!selectedTranscription.patient_summary_sent_at && (
+                      <EmailTranscriptionSummaryForm 
+                        transcriptionId={selectedTranscription.id}
+                        patientName={selectedTranscription.patient_name}
+                        summaryContent={selectedTranscription.patient_summary}
+                        onEmailSent={handleEmailSent}
+                      />
+                    )}
+                    
+                    {selectedTranscription.patient_summary_sent_at && (
+                      <Card className="border-green-200 bg-green-50">
+                        <CardContent className="p-6">
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="h-6 w-6 text-green-600" />
+                            <div>
+                              <h3 className="font-semibold text-green-800">Summary Sent Successfully</h3>
+                              <p className="text-green-700">
+                                Sent on {format(new Date(selectedTranscription.patient_summary_sent_at), 'MMM d, yyyy HH:mm')}
+                                {selectedTranscription.patient_email && ` to ${selectedTranscription.patient_email}`}
+                              </p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
                   </CardContent>
                 </Card>
               )}
@@ -423,6 +501,7 @@ const PastTranscriptions = () => {
                     <TableHead className="text-gray-700 font-semibold">Patient</TableHead>
                     <TableHead className="text-gray-700 font-semibold">Duration</TableHead>
                     <TableHead className="text-gray-700 font-semibold">Status</TableHead>
+                    <TableHead className="text-gray-700 font-semibold">Patient Summary Status</TableHead>
                     <TableHead className="text-gray-700 font-semibold">Created</TableHead>
                     <TableHead className="text-gray-700 font-semibold">Actions</TableHead>
                   </TableRow>
@@ -446,6 +525,9 @@ const PastTranscriptions = () => {
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(transcription)}
+                      </TableCell>
+                      <TableCell>
+                        {getPatientSummaryStatusBadge(transcription)}
                       </TableCell>
                       <TableCell className="text-gray-600">
                         {format(new Date(transcription.created_at), 'MMM d, HH:mm')}
