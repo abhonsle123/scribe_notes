@@ -41,8 +41,25 @@ serve(async (req) => {
           .single();
 
         if (userSettings) {
+          console.log('User settings found:', userSettings);
+          
           if (userSettings.summary_template === 'custom' && userSettings.custom_template) {
+            // User selected "New Custom Template" and has custom content
             userTemplate = userSettings.custom_template;
+            console.log('Using inline custom template');
+          } else if (userSettings.summary_template && userSettings.summary_template.startsWith('custom_')) {
+            // User selected one of their saved custom templates
+            const customTemplateId = userSettings.summary_template.replace('custom_', '');
+            const { data: customTemplateData } = await supabase
+              .from('user_custom_templates')
+              .select('template_content')
+              .eq('id', customTemplateId)
+              .single();
+            
+            if (customTemplateData) {
+              userTemplate = customTemplateData.template_content;
+              console.log('Using saved custom template:', customTemplateId);
+            }
           } else if (userSettings.summary_template) {
             // Get the preset template
             const { data: presetTemplate } = await supabase
@@ -54,6 +71,7 @@ serve(async (req) => {
             
             if (presetTemplate) {
               userTemplate = presetTemplate.template_content;
+              console.log('Using preset template:', userSettings.summary_template);
             }
           }
         }
@@ -138,7 +156,7 @@ serve(async (req) => {
     }
 
     // Use user's custom template or fall back to default
-    const systemPrompt = userTemplate || `You are a medical communication specialist tasked with converting complex medical discharge summaries into patient-friendly language. Your goal is to make medical information accessible while preserving all critical details.
+    const defaultSystemPrompt = `You are a medical communication specialist tasked with converting complex medical discharge summaries into patient-friendly language. Your goal is to make medical information accessible while preserving all critical details.
 
 IMPORTANT: Your response must have TWO distinct sections:
 
@@ -169,6 +187,9 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
 6. **Important medicines to take:** List with purposes
 7. **When to come back:** Follow-up instructions
 8. **Emergency signs:** When to seek immediate help`;
+
+    const systemPrompt = userTemplate || defaultSystemPrompt;
+    console.log('Using template type:', userTemplate ? 'custom' : 'default');
 
     const finalPrompt = notes ? `${systemPrompt}\n\nAdditional context from medical team: ${notes}` : systemPrompt;
 
