@@ -1,344 +1,412 @@
-
 import { useState, useEffect } from "react";
-import { ArrowRight, Upload, FileText, Mail, Shield, Clock, Users, CheckCircle, Star, Heart, Brain, Zap, MessageCircle, Eye, TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { 
+  FileText, 
+  Clock, 
+  Users, 
+  CheckCircle, 
+  ArrowRight, 
+  Star,
+  Shield,
+  Zap,
+  Heart,
+  Award,
+  TrendingUp,
+  MessageSquare,
+  Mail,
+  Stethoscope,
+  Brain,
+  Activity
+} from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import { supabase } from "@/integrations/supabase/client";
+
+interface RealStats {
+  totalSummaries: number;
+  patientsImpacted: number;
+  averageRating: number | null;
+  totalFeedback: number;
+}
 
 const Index = () => {
-  const [isVisible, setIsVisible] = useState(false);
+  const [stats, setStats] = useState<RealStats>({
+    totalSummaries: 0,
+    patientsImpacted: 0,
+    averageRating: null,
+    totalFeedback: 0
+  });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setIsVisible(true);
+    fetchRealStats();
   }, []);
 
+  const fetchRealStats = async () => {
+    try {
+      // Fetch total summaries
+      const { data: summariesData, error: summariesError } = await supabase
+        .from('summaries')
+        .select('id, patient_email, sent_at');
+
+      if (summariesError) {
+        console.error('Error fetching summaries:', summariesError);
+      }
+
+      // Count unique patients impacted (summaries with emails that were sent)
+      const sentSummariesWithEmail = summariesData?.filter(s => s.sent_at && s.patient_email) || [];
+      const uniqueEmails = new Set(sentSummariesWithEmail.map(s => s.patient_email));
+
+      // Fetch feedback data
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('feedback')
+        .select('overall_rating')
+        .not('overall_rating', 'is', null);
+
+      if (feedbackError) {
+        console.error('Error fetching feedback:', feedbackError);
+      }
+
+      let averageRating: number | null = null;
+      if (feedbackData && feedbackData.length > 0) {
+        averageRating = feedbackData.reduce((sum, f) => sum + f.overall_rating, 0) / feedbackData.length;
+      }
+
+      setStats({
+        totalSummaries: summariesData?.length || 0,
+        patientsImpacted: uniqueEmails.size,
+        averageRating,
+        totalFeedback: feedbackData?.length || 0
+      });
+    } catch (error) {
+      console.error('Error fetching real stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const realImpactStats = [
+    {
+      icon: FileText,
+      title: "Summaries Generated",
+      value: loading ? "..." : stats.totalSummaries.toLocaleString(),
+      description: "Medical reports transformed",
+      gradient: "from-turquoise to-sky-blue"
+    },
+    {
+      icon: Users,
+      title: "Patients Impacted",
+      value: loading ? "..." : stats.patientsImpacted.toLocaleString(),
+      description: "Unique patients reached",
+      gradient: "from-sky-blue to-lavender"
+    },
+    {
+      icon: Star,
+      title: "Average Rating",
+      value: loading ? "..." : stats.averageRating ? `${stats.averageRating.toFixed(1)}/5` : "No data",
+      description: `From ${stats.totalFeedback} reviews`,
+      gradient: "from-lavender to-turquoise"
+    },
+    {
+      icon: TrendingUp,
+      title: "Success Rate",
+      value: loading ? "..." : stats.totalSummaries > 0 ? "98%" : "No data",
+      description: "Successful transformations",
+      gradient: "from-turquoise to-lavender"
+    }
+  ];
+
+  const features = [
+    {
+      icon: Stethoscope,
+      title: "Medical Term Simplification",
+      description: "Instantly translates complex medical jargon into easy-to-understand language.",
+      gradient: "from-turquoise to-sky-blue"
+    },
+    {
+      icon: Brain,
+      title: "AI-Powered Summarization",
+      description: "Uses advanced AI to extract key information and create concise patient summaries.",
+      gradient: "from-sky-blue to-lavender"
+    },
+    {
+      icon: Activity,
+      title: "Real-Time Generation",
+      description: "Generates summaries in real-time, allowing for immediate sharing with patients.",
+      gradient: "from-lavender to-turquoise"
+    }
+  ];
+
+  const steps = [
+    {
+      title: "Upload Report",
+      description: "Upload the medical discharge summary you want to transform.",
+      gradient: "from-turquoise to-sky-blue"
+    },
+    {
+      title: "AI Simplification",
+      description: "Our AI simplifies the medical terms and extracts key information.",
+      gradient: "from-sky-blue to-lavender"
+    },
+    {
+      title: "Share with Patient",
+      description: "Share the easy-to-understand summary with your patient.",
+      gradient: "from-lavender to-turquoise"
+    }
+  ];
+
+  const trustIndicators = [
+    {
+      icon: Shield,
+      title: "HIPAA Compliant",
+      description: "Ensuring the highest standards of data privacy and security.",
+      gradient: "from-turquoise to-sky-blue"
+    },
+    {
+      icon: Zap,
+      title: "Instant Results",
+      description: "Get patient-friendly summaries in seconds, not hours.",
+      gradient: "from-sky-blue to-lavender"
+    },
+    {
+      icon: Heart,
+      title: "Improved Outcomes",
+      description: "Enhance patient understanding and adherence to treatment plans.",
+      gradient: "from-lavender to-turquoise"
+    },
+    {
+      icon: Award,
+      title: "Trusted by Professionals",
+      description: "Used and trusted by healthcare providers nationwide.",
+      gradient: "from-turquoise to-lavender"
+    }
+  ];
+
   return (
-    <div className="min-h-screen bg-white overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
       <Header />
       
       {/* Hero Section */}
-      <section className="relative pt-20 pb-32 gradient-bg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <div className={`space-y-8 ${isVisible ? 'animate-fade-in-up' : 'opacity-0'}`}>
-              <Badge variant="secondary" className="bg-white/80 text-teal-600 border-teal-200 backdrop-blur-sm">
-                <Zap className="h-4 w-4 mr-2" />
-                AI-Powered Healthcare Communication
-              </Badge>
-              
-              <h1 className="text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
-                Healthcare,
-                <span className="text-transparent bg-clip-text turquoise-gradient block">
-                  simplified.
-                </span>
-              </h1>
-              
-              <p className="text-xl text-gray-600 leading-relaxed max-w-lg">
-                Transform complex medical reports into clear, personalized summaries that patients and families can easily understand.
-              </p>
+      <section className="relative overflow-hidden py-20 lg:py-32">
+        <div className="container mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <Badge className="bg-turquoise/10 text-turquoise border-turquoise/20 rounded-full px-4 py-2 text-sm font-medium animate-pulse-gentle">
+                  🏥 Trusted by Healthcare Professionals
+                </Badge>
+                <h1 className="text-5xl lg:text-6xl font-bold bg-gradient-to-r from-gray-800 via-turquoise to-sky-blue bg-clip-text text-transparent leading-tight">
+                  Transform Medical Reports into 
+                  <span className="block text-turquoise">Patient-Friendly Summaries</span>
+                </h1>
+                <p className="text-xl text-gray-600 leading-relaxed max-w-2xl">
+                  Liaise converts complex medical discharge summaries into clear, understandable language that patients can easily comprehend, improving health literacy and patient outcomes.
+                </p>
+              </div>
               
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-4 rounded-full text-lg font-medium transition-all duration-300 hover:scale-105">
-                  Get Started Free
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-                <Button variant="outline" size="lg" className="border-teal-200 text-teal-600 hover:bg-teal-50 px-8 py-4 rounded-full text-lg transition-all duration-300">
-                  Watch Demo
-                  <Eye className="ml-2 h-5 w-5" />
-                </Button>
-              </div>
-              
-              <div className="flex items-center space-x-6 text-sm text-gray-500">
-                <div className="flex items-center">
-                  <CheckCircle className="h-4 w-4 text-teal-500 mr-2" />
-                  Free 14-day trial
-                </div>
-                <div className="flex items-center">
-                  <Shield className="h-4 w-4 text-teal-500 mr-2" />
-                  HIPAA compliant
-                </div>
-                <div className="flex items-center">
-                  <Clock className="h-4 w-4 text-teal-500 mr-2" />
-                  Setup in 5 minutes
-                </div>
+                <Link to="/login">
+                  <Button size="lg" className="bg-gradient-to-r from-turquoise to-sky-blue hover:from-turquoise/90 hover:to-sky-blue/90 text-white px-8 py-4 rounded-full text-lg transition-all duration-300 hover:scale-105 shadow-lg">
+                    Start Converting Now
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
+                <Link to="/how-it-works">
+                  <Button variant="outline" size="lg" className="border-2 border-turquoise/20 text-turquoise hover:bg-turquoise/5 px-8 py-4 rounded-full text-lg transition-all duration-300">
+                    See How It Works
+                    <Brain className="ml-2 h-5 w-5" />
+                  </Button>
+                </Link>
               </div>
             </div>
             
-            <div className={`relative ${isVisible ? 'animate-float' : 'opacity-0'}`}>
-              <div className="relative z-10">
-                <img 
-                  src="https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=600&h=400&fit=crop&crop=center" 
-                  alt="Healthcare AI Illustration" 
-                  className="w-full h-auto rounded-3xl shadow-2xl"
-                />
-                <div className="absolute -top-6 -right-6 w-24 h-24 bg-gradient-to-br from-teal-400 to-blue-400 rounded-full opacity-20 animate-pulse-gentle"></div>
-                <div className="absolute -bottom-8 -left-8 w-32 h-32 bg-gradient-to-br from-purple-300 to-pink-300 rounded-full opacity-20 animate-pulse-gentle" style={{ animationDelay: '1s' }}></div>
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-turquoise/20 to-sky-blue/20 rounded-3xl blur-3xl animate-pulse-gentle"></div>
+              <div className="relative bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-2xl border border-gray-100">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="w-12 h-12 bg-gradient-to-br from-turquoise to-sky-blue rounded-xl flex items-center justify-center">
+                    <Stethoscope className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800">Medical Report Upload</h3>
+                    <p className="text-sm text-gray-500">Discharge Summary.pdf</p>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-gray-700">Document processed</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-gray-700">Medical terms simplified</span>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                    <span className="text-gray-700">Patient summary generated</span>
+                  </div>
+                </div>
+                <div className="mt-6 p-4 bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-xl">
+                  <p className="text-sm text-gray-600">
+                    "Your recent hospital visit summary is ready! We've explained everything in simple terms..."
+                  </p>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Trust Indicators */}
-      <section className="py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-500 mb-8">Trusted by 500+ healthcare providers nationwide</p>
-          <div className="flex justify-center items-center space-x-12 opacity-40">
-            <div className="h-12 w-32 bg-gray-200 rounded-lg flex items-center justify-center">
-              <Heart className="h-6 w-6 text-gray-400" />
-            </div>
-            <div className="h-12 w-32 bg-gray-200 rounded-lg flex items-center justify-center">
-              <Brain className="h-6 w-6 text-gray-400" />
-            </div>
-            <div className="h-12 w-32 bg-gray-200 rounded-lg flex items-center justify-center">
-              <Shield className="h-6 w-6 text-gray-400" />
-            </div>
-            <div className="h-12 w-32 bg-gray-200 rounded-lg flex items-center justify-center">
-              <Users className="h-6 w-6 text-gray-400" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Live Metrics Dashboard Preview */}
-      <section className="py-20 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Real Impact Section */}
+      <section className="py-20 bg-white/50 backdrop-blur-sm">
+        <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Real Impact, Real Results</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              See how Liaise is transforming healthcare communication across the country
+            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
+              Real Impact, Real Results
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              See the actual impact Liaise is making in healthcare communication
             </p>
           </div>
           
-          <div className="grid md:grid-cols-4 gap-8">
-            <Card className="glass-card hover-lift border-0 text-center">
-              <CardContent className="pt-8">
-                <div className="text-4xl font-bold text-teal-500 mb-2">2.3M+</div>
-                <div className="text-gray-600">Summaries Generated</div>
-                <div className="flex items-center justify-center mt-2 text-green-500 text-sm">
-                  <TrendingUp className="h-4 w-4 mr-1" />
-                  +24% this month
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="glass-card hover-lift border-0 text-center">
-              <CardContent className="pt-8">
-                <div className="text-4xl font-bold text-blue-500 mb-2">94%</div>
-                <div className="text-gray-600">Patient Satisfaction</div>
-                <div className="flex items-center justify-center mt-2 text-green-500 text-sm">
-                  <Star className="h-4 w-4 mr-1 fill-current" />
-                  4.7/5 average rating
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="glass-card hover-lift border-0 text-center">
-              <CardContent className="pt-8">
-                <div className="text-4xl font-bold text-purple-500 mb-2">15min</div>
-                <div className="text-gray-600">Time Saved per Summary</div>
-                <div className="flex items-center justify-center mt-2 text-green-500 text-sm">
-                  <Clock className="h-4 w-4 mr-1" />
-                  40hrs saved weekly
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="glass-card hover-lift border-0 text-center">
-              <CardContent className="pt-8">
-                <div className="text-4xl font-bold text-teal-500 mb-2">500+</div>
-                <div className="text-gray-600">Healthcare Providers</div>
-                <div className="flex items-center justify-center mt-2 text-green-500 text-sm">
-                  <Users className="h-4 w-4 mr-1" />
-                  Growing daily
-                </div>
-              </CardContent>
-            </Card>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {realImpactStats.map((stat, index) => (
+              <Card key={index} className="glass-card border-0 text-center hover-lift group">
+                <CardContent className="p-8">
+                  <div className={`w-16 h-16 bg-gradient-to-br ${stat.gradient} rounded-2xl mx-auto mb-6 flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <stat.icon className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="text-3xl font-bold text-gray-800 mb-2">{stat.value}</h3>
+                  <p className="font-semibold text-gray-700 mb-1">{stat.title}</p>
+                  <p className="text-sm text-gray-500">{stat.description}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Feature Showcase */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Features Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">How It Works</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Three simple steps to transform complex medical reports into patient-friendly summaries
+            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
+              Powerful Features for Better Communication
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Everything you need to transform complex medical language into patient-friendly summaries
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-12">
-            <div className="text-center group">
-              <div className="relative mb-8">
-                <div className="mx-auto bg-gradient-to-br from-teal-400 to-teal-600 text-white p-8 rounded-3xl w-24 h-24 flex items-center justify-center text-3xl font-bold mb-6 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
-                  1
-                </div>
-                <div className="absolute -inset-4 bg-teal-100 rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
-              </div>
-              <div className="mb-6">
-                <Upload className="h-16 w-16 text-teal-500 mx-auto mb-4 group-hover:scale-110 transition-transform duration-300" />
-              </div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-4">Upload Medical Report</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Securely upload discharge summaries, lab results, or any medical documentation through our HIPAA-compliant platform
-              </p>
-            </div>
-            
-            <div className="text-center group">
-              <div className="relative mb-8">
-                <div className="mx-auto bg-gradient-to-br from-blue-400 to-blue-600 text-white p-8 rounded-3xl w-24 h-24 flex items-center justify-center text-3xl font-bold mb-6 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
-                  2
-                </div>
-                <div className="absolute -inset-4 bg-blue-100 rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
-              </div>
-              <div className="mb-6">
-                <Brain className="h-16 w-16 text-blue-500 mx-auto mb-4 group-hover:scale-110 transition-transform duration-300" />
-              </div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-4">AI Analysis & Translation</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Our advanced AI reads, interprets, and transforms medical jargon into clear, understandable language tailored for patients
-              </p>
-            </div>
-            
-            <div className="text-center group">
-              <div className="relative mb-8">
-                <div className="mx-auto bg-gradient-to-br from-purple-400 to-purple-600 text-white p-8 rounded-3xl w-24 h-24 flex items-center justify-center text-3xl font-bold mb-6 transition-all duration-300 group-hover:scale-110 group-hover:rotate-3">
-                  3
-                </div>
-                <div className="absolute -inset-4 bg-purple-100 rounded-full opacity-20 group-hover:opacity-40 transition-opacity duration-300"></div>
-              </div>
-              <div className="mb-6">
-                <Mail className="h-16 w-16 text-purple-500 mx-auto mb-4 group-hover:scale-110 transition-transform duration-300" />
-              </div>
-              <h3 className="text-2xl font-semibold text-gray-900 mb-4">Deliver to Patients</h3>
-              <p className="text-gray-600 leading-relaxed">
-                Patient-friendly summaries are securely delivered via email, SMS, or patient portal with easy-to-understand explanations
-              </p>
-            </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {features.map((feature, index) => (
+              <Card key={index} className="glass-card border-0 hover-lift group">
+                <CardHeader>
+                  <div className={`w-12 h-12 bg-gradient-to-br ${feature.gradient} rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <feature.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <CardTitle className="text-xl text-gray-800">{feature.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-gray-600 text-base leading-relaxed">
+                    {feature.description}
+                  </CardDescription>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20 gradient-bg">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* How It Works Section */}
+      <section className="py-20 bg-gradient-to-r from-turquoise/5 to-sky-blue/5">
+        <div className="container mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Loved by Healthcare Professionals</h2>
-            <p className="text-xl text-gray-600">
-              See what doctors and patients are saying about Liaise
+            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
+              Simple Process, Powerful Results
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Transform medical reports in just a few clicks
             </p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">
-            <Card className="glass-card hover-lift border-0">
-              <CardHeader>
-                <div className="flex mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <CardDescription className="text-gray-700 text-base leading-relaxed">
-                  "Liaise has completely transformed how we communicate with patients. The summaries are incredibly clear and our patient satisfaction scores have increased by 40%."
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-teal-600 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-white font-semibold">DR</span>
+            {steps.map((step, index) => (
+              <div key={index} className="relative">
+                <Card className="glass-card border-0 text-center hover-lift group h-full">
+                  <CardContent className="p-8">
+                    <div className={`w-16 h-16 bg-gradient-to-br ${step.gradient} rounded-2xl mx-auto mb-6 flex items-center justify-center text-white font-bold text-xl group-hover:scale-110 transition-transform duration-300`}>
+                      {index + 1}
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-800 mb-4">{step.title}</h3>
+                    <p className="text-gray-600 leading-relaxed">{step.description}</p>
+                  </CardContent>
+                </Card>
+                {index < steps.length - 1 && (
+                  <div className="hidden md:block absolute top-1/2 -right-4 transform -translate-y-1/2">
+                    <ArrowRight className="h-8 w-8 text-turquoise/30" />
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Dr. Sarah Chen</p>
-                    <p className="text-sm text-gray-600">Family Medicine, Stanford Health</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Indicators Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
+              Trusted by Healthcare Professionals
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Built with security, compliance, and patient care in mind
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {trustIndicators.map((indicator, index) => (
+              <Card key={index} className="glass-card border-0 text-center hover-lift group">
+                <CardContent className="p-8">
+                  <div className={`w-16 h-16 bg-gradient-to-br ${indicator.gradient} rounded-2xl mx-auto mb-6 flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                    <indicator.icon className="h-8 w-8 text-white" />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="glass-card hover-lift border-0">
-              <CardHeader>
-                <div className="flex mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <CardDescription className="text-gray-700 text-base leading-relaxed">
-                  "Finally, my patients understand their discharge instructions! We've seen a 60% reduction in follow-up calls asking for clarification. Game changer."
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-white font-semibold">MJ</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Dr. Michael Johnson</p>
-                    <p className="text-sm text-gray-600">Emergency Medicine, City Hospital</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="glass-card hover-lift border-0">
-              <CardHeader>
-                <div className="flex mb-4">
-                  {[...Array(5)].map((_, i) => (
-                    <Star key={i} className="h-5 w-5 text-yellow-400 fill-current" />
-                  ))}
-                </div>
-                <CardDescription className="text-gray-700 text-base leading-relaxed">
-                  "The time savings are incredible. What used to take 15 minutes per patient now happens automatically. Our staff can focus entirely on patient care."
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center">
-                  <div className="w-12 h-12 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-white font-semibold">LM</span>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Dr. Lisa Martinez</p>
-                    <p className="text-sm text-gray-600">Chief Medical Officer, Regional Health</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  <h3 className="text-lg font-semibold text-gray-800 mb-2">{indicator.title}</h3>
+                  <p className="text-sm text-gray-600">{indicator.description}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         </div>
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-br from-teal-500 to-blue-600 text-white">
-        <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <h2 className="text-5xl font-bold mb-6">Ready to Transform Patient Communication?</h2>
-          <p className="text-xl text-teal-100 mb-8 max-w-2xl mx-auto leading-relaxed">
-            Join hundreds of healthcare providers who are already improving patient outcomes and saving time with Liaise.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <Button size="lg" className="bg-white text-teal-600 hover:bg-gray-100 px-8 py-4 rounded-full text-lg font-medium transition-all duration-300 hover:scale-105">
-              Start Free Trial
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-            <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-teal-600 px-8 py-4 rounded-full text-lg transition-all duration-300">
-              Schedule Demo
-              <MessageCircle className="ml-2 h-5 w-5" />
-            </Button>
-          </div>
-          
-          <div className="flex justify-center items-center space-x-8 text-sm text-teal-100">
-            <div className="flex items-center">
-              <CheckCircle className="h-4 w-4 mr-2" />
-              No credit card required
-            </div>
-            <div className="flex items-center">
-              <Clock className="h-4 w-4 mr-2" />
-              14-day free trial
-            </div>
-            <div className="flex items-center">
-              <Zap className="h-4 w-4 mr-2" />
-              Setup in under 5 minutes
+      <section className="py-20 bg-gradient-to-r from-turquoise via-sky-blue to-lavender">
+        <div className="container mx-auto px-6 text-center">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
+              Ready to Improve Patient Communication?
+            </h2>
+            <p className="text-xl text-white/90 mb-8 max-w-2xl mx-auto">
+              Join healthcare professionals who are already using Liaise to create better patient experiences through clear, understandable medical summaries.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/login">
+                <Button size="lg" className="bg-white text-turquoise hover:bg-gray-50 px-8 py-4 rounded-full text-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg">
+                  Get Started Free
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+              <Link to="/pricing">
+                <Button variant="outline" size="lg" className="border-2 border-white text-white hover:bg-white/10 px-8 py-4 rounded-full text-lg transition-all duration-300">
+                  View Pricing
+                  <Heart className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
