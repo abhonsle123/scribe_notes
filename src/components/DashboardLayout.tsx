@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -6,7 +5,6 @@ import {
   LayoutDashboard, 
   FileText, 
   History, 
-  Users, 
   Settings, 
   HelpCircle, 
   Menu,
@@ -25,7 +23,6 @@ const DashboardLayout = () => {
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "New Summary", href: "/dashboard/new-summary", icon: FileText },
     { name: "Past Summaries", href: "/dashboard/summaries", icon: History },
-    { name: "Team", href: "/dashboard/team", icon: Users },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
     { name: "Support", href: "/dashboard/support", icon: HelpCircle },
   ];
