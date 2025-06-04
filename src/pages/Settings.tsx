@@ -110,13 +110,22 @@ const Settings = () => {
       }
 
       if (data) {
-        setSettings(data);
-        setSelectedTemplate(data.summary_template);
-        setSelectedClinicalTemplate(data.clinical_notes_template || 'soap_format');
-        setIsCustom(data.summary_template === 'custom');
-        setIsClinicalCustom(data.clinical_notes_template === 'custom');
-        setCustomTemplate(data.custom_template || '');
-        setCustomClinicalTemplate(data.custom_clinical_template || '');
+        const userSettings: UserSettings = {
+          summary_template: data.summary_template || 'discharge_summary',
+          custom_template: data.custom_template,
+          clinical_notes_template: data.clinical_notes_template || 'soap_format',
+          custom_clinical_template: data.custom_clinical_template,
+          data_retention_days: data.data_retention_days || 3,
+          auto_delete_enabled: data.auto_delete_enabled !== false
+        };
+        
+        setSettings(userSettings);
+        setSelectedTemplate(userSettings.summary_template);
+        setSelectedClinicalTemplate(userSettings.clinical_notes_template);
+        setIsCustom(userSettings.summary_template === 'custom');
+        setIsClinicalCustom(userSettings.clinical_notes_template === 'custom');
+        setCustomTemplate(userSettings.custom_template || '');
+        setCustomClinicalTemplate(userSettings.custom_clinical_template || '');
       }
     } catch (error) {
       console.error('Error loading settings:', error);

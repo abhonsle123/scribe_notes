@@ -245,7 +245,9 @@ export type Database = {
       user_settings: {
         Row: {
           auto_delete_enabled: boolean | null
+          clinical_notes_template: string | null
           created_at: string
+          custom_clinical_template: string | null
           custom_template: string | null
           data_retention_days: number | null
           id: string
@@ -255,7 +257,9 @@ export type Database = {
         }
         Insert: {
           auto_delete_enabled?: boolean | null
+          clinical_notes_template?: string | null
           created_at?: string
+          custom_clinical_template?: string | null
           custom_template?: string | null
           data_retention_days?: number | null
           id?: string
@@ -265,7 +269,9 @@ export type Database = {
         }
         Update: {
           auto_delete_enabled?: boolean | null
+          clinical_notes_template?: string | null
           created_at?: string
+          custom_clinical_template?: string | null
           custom_template?: string | null
           data_retention_days?: number | null
           id?: string
