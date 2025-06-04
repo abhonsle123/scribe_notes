@@ -50,9 +50,46 @@ serve(async (req) => {
       throw new Error('Audio data and transcription ID are required')
     }
 
+    // Get auth header to identify user
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      throw new Error('Authorization header required')
+    }
+
+    // Create Supabase client
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Get user ID from auth token
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+    
+    if (authError || !user) {
+      throw new Error('Invalid authentication')
+    }
+
     // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio)
     
+    // Generate unique filename for storage
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const audioFileName = `${user.id}/${transcriptionId}-${timestamp}.webm`
+    
+    // Save audio file to storage
+    const { error: uploadError } = await supabase.storage
+      .from('audio-recordings')
+      .upload(audioFileName, binaryAudio, {
+        contentType: 'audio/webm',
+        upsert: false
+      })
+
+    if (uploadError) {
+      console.error('Error uploading audio file:', uploadError)
+      // Continue with transcription even if upload fails
+    }
+
     // Prepare form data for Whisper
     const formData = new FormData()
     const blob = new Blob([binaryAudio], { type: 'audio/webm' })
@@ -75,18 +112,20 @@ serve(async (req) => {
     const result = await response.json()
     const transcriptionText = result.text
 
-    // Update the transcription record with the text
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Update the transcription record with the text and audio file path
+    const updateData: any = { 
+      transcription_text: transcriptionText,
+      updated_at: new Date().toISOString()
+    }
+
+    // Only set audio_file_path if upload was successful
+    if (!uploadError) {
+      updateData.audio_file_path = audioFileName
+    }
 
     const { error: updateError } = await supabase
       .from('transcriptions')
-      .update({ 
-        transcription_text: transcriptionText,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', transcriptionId)
 
     if (updateError) {

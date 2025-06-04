@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,7 @@ import {
   Clock
 } from "lucide-react";
 import { format } from "date-fns";
+import { AudioPlayer } from "@/components/AudioPlayer";
 
 interface Transcription {
   id: string;
@@ -40,6 +40,7 @@ interface Transcription {
   patient_summary_sent_at: string | null;
   created_at: string;
   audio_duration: number | null;
+  audio_file_path: string | null;
 }
 
 const PastTranscriptions = () => {
@@ -97,6 +98,19 @@ const PastTranscriptions = () => {
 
   const deleteTranscription = async (id: string) => {
     try {
+      const transcription = transcriptions.find(t => t.id === id);
+      
+      // Delete audio file if it exists
+      if (transcription?.audio_file_path) {
+        const { error: deleteError } = await supabase.storage
+          .from('audio-recordings')
+          .remove([transcription.audio_file_path]);
+          
+        if (deleteError) {
+          console.error('Error deleting audio file:', deleteError);
+        }
+      }
+
       const { error } = await supabase
         .from('transcriptions')
         .delete()
@@ -117,7 +131,7 @@ const PastTranscriptions = () => {
       
       toast({
         title: "Transcription Deleted",
-        description: "The transcription has been removed successfully",
+        description: "The transcription and audio file have been removed successfully",
       });
     } catch (error) {
       console.error('Error:', error);
@@ -208,6 +222,24 @@ const PastTranscriptions = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
+              {/* Audio Recording Section */}
+              <Card className="glass-card border-0 shadow-xl">
+                <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-xl">
+                  <CardTitle className="flex items-center text-2xl">
+                    <div className="p-2 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl mr-3">
+                      <FileAudio className="h-6 w-6 text-purple-600" />
+                    </div>
+                    Audio Recording
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8">
+                  <AudioPlayer 
+                    audioFilePath={selectedTranscription.audio_file_path || ''} 
+                    transcriptionId={selectedTranscription.id}
+                  />
+                </CardContent>
+              </Card>
+
               {/* Transcription Text */}
               {selectedTranscription.transcription_text && (
                 <Card className="glass-card border-0 shadow-xl">
@@ -381,7 +413,7 @@ const PastTranscriptions = () => {
                 Recent Transcriptions
               </CardTitle>
               <CardDescription className="text-lg">
-                Click on any transcription to view details. Transcriptions are automatically cleaned up after 3 days.
+                Click on any transcription to view details and play back audio. Transcriptions are automatically cleaned up after 3 days.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-8">

@@ -167,6 +167,7 @@ export type Database = {
       transcriptions: {
         Row: {
           audio_duration: number | null
+          audio_file_path: string | null
           clinical_notes: string | null
           clinical_notes_sent_at: string | null
           created_at: string
@@ -182,6 +183,7 @@ export type Database = {
         }
         Insert: {
           audio_duration?: number | null
+          audio_file_path?: string | null
           clinical_notes?: string | null
           clinical_notes_sent_at?: string | null
           created_at?: string
@@ -197,6 +199,7 @@ export type Database = {
         }
         Update: {
           audio_duration?: number | null
+          audio_file_path?: string | null
           clinical_notes?: string | null
           clinical_notes_sent_at?: string | null
           created_at?: string
@@ -284,6 +287,10 @@ export type Database = {
       delete_old_transcriptions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_current_user_id: {
+        Args: Record<PropertyKey, never>
+        Returns: string
       }
     }
     Enums: {
