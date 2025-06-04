@@ -26,6 +26,7 @@ import {
   Send
 } from "lucide-react";
 import { format } from "date-fns";
+import { EmailSummaryForm } from "@/components/EmailSummaryForm";
 
 interface Summary {
   id: string;
@@ -124,6 +125,19 @@ const PastSummaries = () => {
     }
   };
 
+  const handleEmailSent = () => {
+    // Refresh the summaries to update the status
+    fetchSummaries();
+    
+    // Update the selected summary if it's still selected
+    if (selectedSummary) {
+      setSelectedSummary(prev => prev ? {
+        ...prev,
+        sent_at: new Date().toISOString()
+      } : null);
+    }
+  };
+
   const getStatusBadge = (sentAt: string | null) => {
     if (sentAt) {
       return (
@@ -156,6 +170,8 @@ const PastSummaries = () => {
   }
 
   if (selectedSummary) {
+    const isDraft = !selectedSummary.sent_at;
+    
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -179,7 +195,7 @@ const PastSummaries = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
@@ -197,6 +213,16 @@ const PastSummaries = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Show email form only for draft summaries */}
+            {isDraft && (
+              <EmailSummaryForm
+                summaryId={selectedSummary.id}
+                patientName={selectedSummary.patient_name}
+                summaryContent={selectedSummary.summary_content}
+                onEmailSent={handleEmailSent}
+              />
+            )}
           </div>
 
           <div className="space-y-6">
