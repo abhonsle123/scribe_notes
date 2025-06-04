@@ -133,45 +133,74 @@ const About = () => {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">Leadership Team</h2>
           
-          <div className="grid md:grid-cols-3 gap-8">
-            <Card className="text-center border border-slate-200 bg-white">
-              <CardContent className="p-8">
-                <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <span className="text-2xl font-bold text-blue-600">SC</span>
+          <div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
+            {/* Kevin Gencel */}
+            <div className="group perspective-1000">
+              <div className="relative w-full h-80 transform-style-preserve-3d transition-transform duration-700 group-hover:rotate-y-180">
+                {/* Front of card */}
+                <div className="absolute inset-0 w-full h-full backface-hidden">
+                  <Card className="text-center border border-slate-200 bg-white h-full flex flex-col justify-center">
+                    <CardContent className="p-8">
+                      <div className="w-32 h-32 bg-gradient-to-br from-slate-200 to-slate-300 rounded-lg flex items-center justify-center mx-auto mb-6">
+                        <Users className="h-16 w-16 text-slate-500" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">Kevin Gencel</h3>
+                      <p className="text-blue-600 font-medium">Co-Founder and CEO</p>
+                    </CardContent>
+                  </Card>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Dr. Sarah Chen</h3>
-                <p className="text-blue-600 font-medium mb-4">CEO & Co-Founder</p>
-                <p className="text-slate-600 text-sm">
-                  Former Chief Medical Officer with 15 years in healthcare technology. MD from Stanford, MBA from Wharton.
-                </p>
-              </CardContent>
-            </Card>
+                
+                {/* Back of card */}
+                <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180">
+                  <Card className="border border-slate-200 bg-white h-full">
+                    <CardContent className="p-8 h-full flex flex-col justify-center">
+                      <h3 className="text-xl font-bold text-slate-900 mb-4">Kevin Gencel</h3>
+                      <p className="text-slate-600 text-sm leading-relaxed">
+                        Kevin brings over 15 years of experience in healthcare technology and entrepreneurship. 
+                        He previously founded two successful health tech startups and has a deep passion for 
+                        improving patient outcomes through innovative technology solutions. Kevin holds an MBA 
+                        from Stanford and a BS in Computer Science from MIT. When he's not working, he enjoys 
+                        hiking and spending time with his family.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </div>
             
-            <Card className="text-center border border-slate-200 bg-white">
-              <CardContent className="p-8">
-                <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <span className="text-2xl font-bold text-purple-600">MR</span>
+            {/* Arjun Bhonsle */}
+            <div className="group perspective-1000">
+              <div className="relative w-full h-80 transform-style-preserve-3d transition-transform duration-700 group-hover:rotate-y-180">
+                {/* Front of card */}
+                <div className="absolute inset-0 w-full h-full backface-hidden">
+                  <Card className="text-center border border-slate-200 bg-white h-full flex flex-col justify-center">
+                    <CardContent className="p-8">
+                      <div className="w-32 h-32 bg-gradient-to-br from-purple-200 to-purple-300 rounded-lg flex items-center justify-center mx-auto mb-6">
+                        <Shield className="h-16 w-16 text-purple-600" />
+                      </div>
+                      <h3 className="text-xl font-bold text-slate-900 mb-2">Arjun Bhonsle</h3>
+                      <p className="text-purple-600 font-medium">Co-Founder and CTO</p>
+                    </CardContent>
+                  </Card>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Michael Rodriguez</h3>
-                <p className="text-purple-600 font-medium mb-4">CTO & Co-Founder</p>
-                <p className="text-slate-600 text-sm">
-                  AI/ML expert with 12 years building healthcare AI solutions. PhD in Computer Science from MIT.
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="text-center border border-slate-200 bg-white">
-              <CardContent className="p-8">
-                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <span className="text-2xl font-bold text-green-600">AJ</span>
+                
+                {/* Back of card */}
+                <div className="absolute inset-0 w-full h-full backface-hidden rotate-y-180">
+                  <Card className="border border-slate-200 bg-white h-full">
+                    <CardContent className="p-8 h-full flex flex-col justify-center">
+                      <h3 className="text-xl font-bold text-slate-900 mb-4">Arjun Bhonsle</h3>
+                      <p className="text-slate-600 text-sm leading-relaxed">
+                        Arjun is a seasoned AI/ML engineer with expertise in natural language processing and 
+                        healthcare applications. He has published numerous papers on medical AI and holds a PhD 
+                        in Computer Science from Carnegie Mellon. Before co-founding Liaise, Arjun led AI research 
+                        teams at major tech companies, focusing on healthcare communication technologies. He's 
+                        passionate about making AI accessible and beneficial for healthcare providers and patients alike.
+                      </p>
+                    </CardContent>
+                  </Card>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2">Dr. Aisha Johnson</h3>
-                <p className="text-green-600 font-medium mb-4">Chief Medical Officer</p>
-                <p className="text-slate-600 text-sm">
-                  Patient advocate and physician with expertise in health equity and communication. MD from Johns Hopkins.
-                </p>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
         </div>
       </section>
