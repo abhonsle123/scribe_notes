@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Settings as SettingsIcon, Save, FileText, Clock, Trash2 } from "lucide-react";
+import { Settings as SettingsIcon, Save, FileText, Clock, Trash2, Plus, Check } from "lucide-react";
 
 interface UserSettings {
   summary_template: string;
@@ -26,6 +27,13 @@ interface TemplatePreset {
   template_content: string;
 }
 
+interface CustomTemplate {
+  id: string;
+  name: string;
+  template_content: string;
+  created_at: string;
+}
+
 const Settings = () => {
   const [settings, setSettings] = useState<UserSettings>({
     summary_template: 'discharge_summary',
@@ -34,10 +42,16 @@ const Settings = () => {
     auto_delete_enabled: true
   });
   const [templatePresets, setTemplatePresets] = useState<TemplatePreset[]>([]);
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
   const [customTemplate, setCustomTemplate] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [newTemplateName, setNewTemplateName] = useState("");
+  const [newTemplateContent, setNewTemplateContent] = useState("");
   const [isCustom, setIsCustom] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -54,6 +68,7 @@ const Settings = () => {
     if (user) {
       loadSettings();
       loadTemplatePresets();
+      loadCustomTemplates();
     }
   }, [user]);
 
@@ -71,6 +86,7 @@ const Settings = () => {
 
       if (data) {
         setSettings(data);
+        setSelectedTemplate(data.summary_template);
         setIsCustom(data.summary_template === 'custom');
         setCustomTemplate(data.custom_template || '');
       }
@@ -101,6 +117,62 @@ const Settings = () => {
     }
   };
 
+  const loadCustomTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_custom_templates')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCustomTemplates(data || []);
+    } catch (error) {
+      console.error('Error loading custom templates:', error);
+    }
+  };
+
+  const confirmTemplateSelection = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    try {
+      const settingsToSave = {
+        ...settings,
+        summary_template: selectedTemplate,
+        custom_template: isCustom ? customTemplate : null,
+        data_retention_days: settings.data_retention_days === -1 ? null : settings.data_retention_days
+      };
+
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user.id,
+          ...settingsToSave,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      setSettings(settingsToSave);
+      setHasUnsavedChanges(false);
+
+      toast({
+        title: "Template Confirmed",
+        description: "Your template selection has been saved and will be used for new summaries.",
+      });
+    } catch (error) {
+      console.error('Error confirming template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to confirm template selection. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const saveSettings = async () => {
     if (!user) return;
 
@@ -108,8 +180,6 @@ const Settings = () => {
     try {
       const settingsToSave = {
         ...settings,
-        summary_template: isCustom ? 'custom' : settings.summary_template,
-        custom_template: isCustom ? customTemplate : null,
         data_retention_days: settings.data_retention_days === -1 ? null : settings.data_retention_days
       };
 
@@ -139,17 +209,118 @@ const Settings = () => {
     }
   };
 
+  const saveCustomTemplate = async () => {
+    if (!user || !newTemplateName.trim() || !newTemplateContent.trim()) {
+      toast({
+        title: "Invalid Input",
+        description: "Please provide both a name and content for your template.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (customTemplates.length >= 5) {
+      toast({
+        title: "Template Limit Reached",
+        description: "You can only save up to 5 custom templates. Please delete one first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_custom_templates')
+        .insert({
+          user_id: user.id,
+          name: newTemplateName.trim(),
+          template_content: newTemplateContent.trim()
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('A template with this name already exists');
+        }
+        throw error;
+      }
+
+      await loadCustomTemplates();
+      setNewTemplateName("");
+      setNewTemplateContent("");
+      setSaveDialogOpen(false);
+
+      toast({
+        title: "Template Saved",
+        description: `Custom template "${newTemplateName}" has been saved.`,
+      });
+    } catch (error: any) {
+      console.error('Error saving custom template:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save custom template. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const deleteCustomTemplate = async (templateId: string, templateName: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_custom_templates')
+        .delete()
+        .eq('id', templateId);
+
+      if (error) throw error;
+
+      await loadCustomTemplates();
+
+      toast({
+        title: "Template Deleted",
+        description: `Custom template "${templateName}" has been deleted.`,
+      });
+    } catch (error) {
+      console.error('Error deleting custom template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete template. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleTemplateChange = (value: string) => {
+    setSelectedTemplate(value);
+    setHasUnsavedChanges(true);
+    
     if (value === 'custom') {
       setIsCustom(true);
+    } else if (value.startsWith('custom_')) {
+      setIsCustom(true);
+      const customTemplateId = value.replace('custom_', '');
+      const template = customTemplates.find(t => t.id === customTemplateId);
+      if (template) {
+        setCustomTemplate(template.template_content);
+      }
     } else {
       setIsCustom(false);
-      setSettings(prev => ({ ...prev, summary_template: value }));
     }
   };
 
   const getSelectedPreset = () => {
-    return templatePresets.find(preset => preset.name === settings.summary_template);
+    return templatePresets.find(preset => preset.name === selectedTemplate);
+  };
+
+  const getCurrentTemplateDisplay = () => {
+    if (selectedTemplate === 'custom') {
+      return customTemplate || 'No custom template content';
+    } else if (selectedTemplate.startsWith('custom_')) {
+      const customTemplateId = selectedTemplate.replace('custom_', '');
+      const template = customTemplates.find(t => t.id === customTemplateId);
+      return template?.template_content || 'Template not found';
+    } else {
+      const preset = getSelectedPreset();
+      return preset?.template_content || 'Template not found';
+    }
   };
 
   if (isLoading) {
@@ -188,10 +359,7 @@ const Settings = () => {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="template-select">Template Type</Label>
-              <Select 
-                value={isCustom ? 'custom' : settings.summary_template} 
-                onValueChange={handleTemplateChange}
-              >
+              <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a template" />
                 </SelectTrigger>
@@ -201,33 +369,115 @@ const Settings = () => {
                       {preset.description}
                     </SelectItem>
                   ))}
-                  <SelectItem value="custom">Custom Template</SelectItem>
+                  {customTemplates.map((template) => (
+                    <SelectItem key={template.id} value={`custom_${template.id}`}>
+                      {template.name} (Custom)
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="custom">New Custom Template</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {!isCustom && getSelectedPreset() && (
-              <div className="space-y-2">
-                <Label>Template Preview</Label>
-                <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-700">
-                  {getSelectedPreset()?.template_content}
-                </div>
-              </div>
-            )}
-
-            {isCustom && (
+            {selectedTemplate === 'custom' && (
               <div className="space-y-2">
                 <Label htmlFor="custom-template">Custom Template</Label>
                 <Textarea
                   id="custom-template"
                   placeholder="Enter your custom template instructions for the AI..."
                   value={customTemplate}
-                  onChange={(e) => setCustomTemplate(e.target.value)}
+                  onChange={(e) => {
+                    setCustomTemplate(e.target.value);
+                    setHasUnsavedChanges(true);
+                  }}
                   className="min-h-[120px]"
                 />
                 <p className="text-xs text-gray-500">
                   This template will be used to instruct the AI on how to structure and format your summaries.
                 </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label>Current Template Preview</Label>
+              <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-700 max-h-40 overflow-y-auto">
+                {getCurrentTemplateDisplay()}
+              </div>
+            </div>
+
+            <div className="flex space-x-2">
+              <Button 
+                onClick={confirmTemplateSelection}
+                disabled={isSaving || !hasUnsavedChanges}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                <Check className="h-4 w-4 mr-2" />
+                {isSaving ? 'Confirming...' : 'Confirm Template'}
+              </Button>
+              
+              <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" disabled={customTemplates.length >= 5}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Save as Custom ({customTemplates.length}/5)
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Save Custom Template</DialogTitle>
+                    <DialogDescription>
+                      Create a new custom template that you can reuse later.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="template-name">Template Name</Label>
+                      <Input
+                        id="template-name"
+                        placeholder="My Custom Template"
+                        value={newTemplateName}
+                        onChange={(e) => setNewTemplateName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="template-content">Template Content</Label>
+                      <Textarea
+                        id="template-content"
+                        placeholder="Enter your template instructions..."
+                        value={newTemplateContent}
+                        onChange={(e) => setNewTemplateContent(e.target.value)}
+                        className="min-h-[120px]"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={saveCustomTemplate}>Save Template</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            {customTemplates.length > 0 && (
+              <div className="space-y-2">
+                <Label>Your Custom Templates</Label>
+                <div className="space-y-2">
+                  {customTemplates.map((template) => (
+                    <div key={template.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                      <span className="text-sm font-medium">{template.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteCustomTemplate(template.id, template.name)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
