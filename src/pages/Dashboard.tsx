@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,14 +13,100 @@ import {
   TrendingUp,
   Mail,
   MessageSquare,
-  Globe
+  Globe,
+  DraftingCompass
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Summary {
+  id: string;
+  patient_name: string;
+  sent_at: string | null;
+  created_at: string;
+}
+
+interface DashboardStats {
+  summariesThisMonth: number;
+  patientSatisfaction: string;
+  chatboxInteraction: string;
+  unsentDrafts: number;
+}
 
 const Dashboard = () => {
   const { user } = useAuth();
-  
-  // Mock data for demonstration
+  const [summaries, setSummaries] = useState<Summary[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({
+    summariesThisMonth: 0,
+    patientSatisfaction: "N/A",
+    chatboxInteraction: "15%", // Mock data as requested
+    unsentDrafts: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user?.id) {
+      fetchSummariesAndStats();
+    }
+  }, [user?.id]);
+
+  const fetchSummariesAndStats = async () => {
+    if (!user?.id) return;
+
+    try {
+      // Fetch all summaries for the user
+      const { data: allSummaries, error: summariesError } = await supabase
+        .from('summaries')
+        .select('id, patient_name, sent_at, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (summariesError) throw summariesError;
+
+      setSummaries(allSummaries || []);
+
+      // Calculate stats
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const threeDaysAgo = new Date(now.getTime() - (3 * 24 * 60 * 60 * 1000));
+
+      // Summaries this month
+      const summariesThisMonth = allSummaries?.filter(summary => 
+        new Date(summary.created_at) >= startOfMonth
+      ).length || 0;
+
+      // Unsent drafts in last 3 days
+      const unsentDrafts = allSummaries?.filter(summary => 
+        !summary.sent_at && new Date(summary.created_at) >= threeDaysAgo
+      ).length || 0;
+
+      // Fetch average rating from feedback
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('feedback')
+        .select('overall_rating')
+        .eq('user_id', user.id)
+        .not('overall_rating', 'is', null);
+
+      let patientSatisfaction = "N/A";
+      if (!feedbackError && feedbackData && feedbackData.length > 0) {
+        const avgRating = feedbackData.reduce((sum, feedback) => sum + feedback.overall_rating, 0) / feedbackData.length;
+        patientSatisfaction = `${avgRating.toFixed(1)}/5`;
+      }
+
+      setStats({
+        summariesThisMonth,
+        patientSatisfaction,
+        chatboxInteraction: "15%", // Mock data as requested
+        unsentDrafts
+      });
+
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const recentActivity = [
     {
       id: 1,
@@ -49,37 +134,6 @@ const Dashboard = () => {
     }
   ];
 
-  const analytics = [
-    {
-      title: "Average Processing Time",
-      value: "2.3 min",
-      icon: Clock,
-      trend: "+12%",
-      description: "Faster than last month"
-    },
-    {
-      title: "Patient Satisfaction",
-      value: "4.8/5",
-      icon: Star,
-      trend: "+0.2",
-      description: "Based on 127 responses"
-    },
-    {
-      title: "Delivery Success Rate",
-      value: "99.2%",
-      icon: CheckCircle,
-      trend: "+1.1%",
-      description: "Last 30 days"
-    },
-    {
-      title: "Summaries This Month", 
-      value: "156",
-      icon: TrendingUp,
-      trend: "+23%",
-      description: "vs. last month"
-    }
-  ];
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "delivered": return "bg-green-100 text-green-700 border-green-200";
@@ -97,6 +151,37 @@ const Dashboard = () => {
       default: return <Send className="h-4 w-4" />;
     }
   };
+
+  const analytics = [
+    {
+      title: "Summaries This Month",
+      value: loading ? "..." : stats.summariesThisMonth.toString(),
+      icon: TrendingUp,
+      trend: "+23%",
+      description: "vs. last month"
+    },
+    {
+      title: "Patient Satisfaction",
+      value: loading ? "..." : stats.patientSatisfaction,
+      icon: Star,
+      trend: "+0.2",
+      description: "Based on feedback"
+    },
+    {
+      title: "Chatbox Interaction Rate",
+      value: loading ? "..." : stats.chatboxInteraction,
+      icon: MessageSquare,
+      trend: "+2%",
+      description: "Patients using chat"
+    },
+    {
+      title: "Unsent Drafts (3 days)",
+      value: loading ? "..." : stats.unsentDrafts.toString(),
+      icon: DraftingCompass,
+      trend: stats.unsentDrafts > 0 ? "Pending" : "Clear",
+      description: "Last 3 days"
+    }
+  ];
 
   return (
     <div className="space-y-6">
@@ -151,7 +236,13 @@ const Dashboard = () => {
                 {metric.value}
               </div>
               <div className="flex items-center text-sm">
-                <span className="text-green-600 font-medium">{metric.trend}</span>
+                <span className={`font-medium ${
+                  metric.title === "Unsent Drafts (3 days)" && stats.unsentDrafts > 0 
+                    ? "text-orange-600" 
+                    : "text-green-600"
+                }`}>
+                  {metric.trend}
+                </span>
                 <span className="text-gray-500 ml-1">{metric.description}</span>
               </div>
             </CardContent>
