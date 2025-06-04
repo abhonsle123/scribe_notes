@@ -21,10 +21,14 @@ export const useTranscriptions = () => {
     try {
       setLoading(true);
       
-      // Clean up old transcriptions first
-      const { error: cleanupError } = await supabase.rpc('delete_old_transcriptions');
-      if (cleanupError) {
-        console.warn('Cleanup error (non-critical):', cleanupError);
+      // Clean up old transcriptions first - handle errors gracefully
+      try {
+        const { error: cleanupError } = await supabase.rpc('delete_old_transcriptions');
+        if (cleanupError) {
+          console.warn('Cleanup error (non-critical):', cleanupError);
+        }
+      } catch (cleanupErr) {
+        console.warn('Cleanup failed (non-critical):', cleanupErr);
       }
       
       // Fetch transcriptions from the last 3 days
@@ -34,6 +38,7 @@ export const useTranscriptions = () => {
       const { data, error } = await supabase
         .from('transcriptions')
         .select('*')
+        .eq('user_id', user.id)
         .gte('created_at', threeDaysAgo.toISOString())
         .order('created_at', { ascending: false });
 
@@ -74,7 +79,8 @@ export const useTranscriptions = () => {
       const { error } = await supabase
         .from('transcriptions')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user.id); // Add user_id check for security
 
       if (error) {
         console.error('Error deleting transcription:', error);
@@ -105,6 +111,8 @@ export const useTranscriptions = () => {
   useEffect(() => {
     if (user) {
       fetchTranscriptions();
+    } else {
+      setLoading(false);
     }
   }, [user]);
 

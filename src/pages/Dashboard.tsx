@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,7 @@ const Dashboard = () => {
     unsentDrafts: 0
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -90,16 +92,16 @@ const Dashboard = () => {
         .from('profiles')
         .select('first_name, last_name, full_name')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        console.error('Error fetching user profile:', error);
+        console.warn('Error fetching user profile (non-critical):', error);
         return;
       }
 
       setUserProfile(profile);
     } catch (error) {
-      console.error('Error fetching user profile:', error);
+      console.warn('Error fetching user profile (non-critical):', error);
     }
   };
 
@@ -117,37 +119,49 @@ const Dashboard = () => {
     if (!user?.id) return;
 
     try {
-      // Fetch summaries
+      setLoading(true);
+      setError(null);
+
+      // Fetch summaries with error handling
       const { data: summariesData, error: summariesError } = await supabase
         .from('summaries')
         .select('id, patient_name, sent_at, created_at, patient_email')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (summariesError) throw summariesError;
+      if (summariesError) {
+        console.error('Error fetching summaries:', summariesError);
+        // Continue with empty data instead of throwing
+      }
 
-      // Fetch transcriptions
+      // Fetch transcriptions with error handling
       const { data: transcriptionsData, error: transcriptionsError } = await supabase
         .from('transcriptions')
         .select('id, patient_name, transcription_text, clinical_notes, patient_summary, created_at, audio_duration')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (transcriptionsError) throw transcriptionsError;
+      if (transcriptionsError) {
+        console.error('Error fetching transcriptions:', transcriptionsError);
+        // Continue with empty data instead of throwing
+      }
 
-      setSummaries(summariesData || []);
-      setTranscriptions(transcriptionsData || []);
+      const summariesDataSafe = summariesData || [];
+      const transcriptionsDataSafe = transcriptionsData || [];
+
+      setSummaries(summariesDataSafe);
+      setTranscriptions(transcriptionsDataSafe);
 
       // Combine and sort recent activity
       const allActivity = [
-        ...(summariesData || []).map(s => ({ ...s, type: 'summary' as const })),
-        ...(transcriptionsData || []).map(t => ({ ...t, type: 'transcription' as const }))
+        ...summariesDataSafe.map(s => ({ ...s, type: 'summary' as const })),
+        ...transcriptionsDataSafe.map(t => ({ ...t, type: 'transcription' as const }))
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
        .slice(0, 3);
 
       setRecentActivity(allActivity);
 
-      // Calculate stats
+      // Calculate stats with safe defaults
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -155,27 +169,27 @@ const Dashboard = () => {
       const threeDaysAgo = new Date(now.getTime() - (3 * 24 * 60 * 60 * 1000));
 
       // Summaries this month
-      const summariesThisMonth = summariesData?.filter(summary => 
+      const summariesThisMonth = summariesDataSafe.filter(summary => 
         new Date(summary.created_at) >= startOfMonth
-      ).length || 0;
+      ).length;
 
       // Transcriptions this month
-      const transcriptionsThisMonth = transcriptionsData?.filter(transcription => 
+      const transcriptionsThisMonth = transcriptionsDataSafe.filter(transcription => 
         new Date(transcription.created_at) >= startOfMonth
-      ).length || 0;
+      ).length;
 
       // Summaries last month
-      const summariesLastMonth = summariesData?.filter(summary => {
+      const summariesLastMonth = summariesDataSafe.filter(summary => {
         const createdDate = new Date(summary.created_at);
         return createdDate >= startOfLastMonth && createdDate <= endOfLastMonth;
-      }).length || 0;
+      }).length;
 
       // Unsent drafts in last 3 days
-      const unsentDrafts = summariesData?.filter(summary => 
+      const unsentDrafts = summariesDataSafe.filter(summary => 
         !summary.sent_at && new Date(summary.created_at) >= threeDaysAgo
-      ).length || 0;
+      ).length;
 
-      // Fetch average rating from feedback
+      // Fetch average rating from feedback with error handling
       const { data: feedbackData, error: feedbackError } = await supabase
         .from('feedback')
         .select('overall_rating')
@@ -201,6 +215,7 @@ const Dashboard = () => {
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
+      setError('Failed to load dashboard data. Please try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -262,6 +277,25 @@ const Dashboard = () => {
     if (stats.averageRating >= 3.0) return "Fair";
     return "Needs improvement";
   };
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-96">
+          <CardHeader>
+            <CardTitle className="text-red-600">Error Loading Dashboard</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={fetchDashboardData} className="w-full">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const analytics = [
     {
