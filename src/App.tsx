@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +15,7 @@ import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import NewSummary from "./pages/NewSummary";
 import PastSummaries from "./pages/PastSummaries";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -61,7 +61,7 @@ const App = () => (
               <Route path="new-summary" element={<NewSummary />} />
               <Route path="summaries" element={<PastSummaries />} />
               <Route path="team" element={<div>Team - Coming Soon</div>} />
-              <Route path="settings" element={<div>Settings - Coming Soon</div>} />
+              <Route path="settings" element={<Settings />} />
               <Route path="support" element={<div>Support - Coming Soon</div>} />
             </Route>
             

@@ -72,6 +72,66 @@ export type Database = {
         }
         Relationships: []
       }
+      template_presets: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          template_content: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          template_content: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          template_content?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          auto_delete_enabled: boolean | null
+          created_at: string
+          custom_template: string | null
+          data_retention_days: number | null
+          id: string
+          summary_template: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auto_delete_enabled?: boolean | null
+          created_at?: string
+          custom_template?: string | null
+          data_retention_days?: number | null
+          id?: string
+          summary_template?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auto_delete_enabled?: boolean | null
+          created_at?: string
+          custom_template?: string | null
+          data_retention_days?: number | null
+          id?: string
+          summary_template?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
