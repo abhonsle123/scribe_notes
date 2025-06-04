@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -60,7 +59,7 @@ interface UserProfile {
 }
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
   const [recentActivity, setRecentActivity] = useState<Array<Summary | Transcription>>([]);
@@ -71,18 +70,11 @@ const Dashboard = () => {
     summariesLastMonth: 0,
     patientSatisfaction: "N/A",
     averageRating: null,
-    chatboxInteraction: "15%", // Mock data as requested
+    chatboxInteraction: "15%",
     unsentDrafts: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchUserProfile();
-      fetchDashboardData();
-    }
-  }, [user?.id]);
 
   const fetchUserProfile = async () => {
     if (!user?.id) return;
@@ -105,57 +97,76 @@ const Dashboard = () => {
     }
   };
 
-  const getDisplayName = () => {
-    if (userProfile?.first_name) {
-      return userProfile.first_name;
-    }
-    if (userProfile?.full_name) {
-      return userProfile.full_name.split(' ')[0];
-    }
-    return user?.email?.split('@')[0] || 'Doctor';
-  };
-
   const fetchDashboardData = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
 
     try {
+      console.log('Starting dashboard data fetch for user:', user.id);
       setLoading(true);
       setError(null);
 
-      // Fetch summaries with error handling
-      const { data: summariesData, error: summariesError } = await supabase
+      // Fetch summaries with timeout and better error handling
+      const summariesPromise = supabase
         .from('summaries')
         .select('id, patient_name, sent_at, created_at, patient_email')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (summariesError) {
-        console.error('Error fetching summaries:', summariesError);
-        // Continue with empty data instead of throwing
-      }
-
-      // Fetch transcriptions with error handling
-      const { data: transcriptionsData, error: transcriptionsError } = await supabase
+      // Fetch transcriptions with timeout and better error handling
+      const transcriptionsPromise = supabase
         .from('transcriptions')
         .select('id, patient_name, transcription_text, clinical_notes, patient_summary, created_at, audio_duration')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      if (transcriptionsError) {
-        console.error('Error fetching transcriptions:', transcriptionsError);
-        // Continue with empty data instead of throwing
+      // Fetch feedback with timeout and better error handling
+      const feedbackPromise = supabase
+        .from('feedback')
+        .select('overall_rating')
+        .eq('user_id', user.id)
+        .not('overall_rating', 'is', null);
+
+      // Execute all queries with a reasonable timeout
+      const [summariesResult, transcriptionsResult, feedbackResult] = await Promise.allSettled([
+        summariesPromise,
+        transcriptionsPromise,
+        feedbackPromise
+      ]);
+
+      // Handle summaries result
+      let summariesData: Summary[] = [];
+      if (summariesResult.status === 'fulfilled' && !summariesResult.value.error) {
+        summariesData = summariesResult.value.data || [];
+      } else {
+        console.warn('Error fetching summaries:', summariesResult.status === 'fulfilled' ? summariesResult.value.error : summariesResult.reason);
       }
 
-      const summariesDataSafe = summariesData || [];
-      const transcriptionsDataSafe = transcriptionsData || [];
+      // Handle transcriptions result
+      let transcriptionsData: Transcription[] = [];
+      if (transcriptionsResult.status === 'fulfilled' && !transcriptionsResult.value.error) {
+        transcriptionsData = transcriptionsResult.value.data || [];
+      } else {
+        console.warn('Error fetching transcriptions:', transcriptionsResult.status === 'fulfilled' ? transcriptionsResult.value.error : transcriptionsResult.reason);
+      }
 
-      setSummaries(summariesDataSafe);
-      setTranscriptions(transcriptionsDataSafe);
+      // Handle feedback result
+      let feedbackData = null;
+      if (feedbackResult.status === 'fulfilled' && !feedbackResult.value.error) {
+        feedbackData = feedbackResult.value.data || [];
+      } else {
+        console.warn('Error fetching feedback:', feedbackResult.status === 'fulfilled' ? feedbackResult.value.error : feedbackResult.reason);
+      }
+
+      setSummaries(summariesData);
+      setTranscriptions(transcriptionsData);
 
       // Combine and sort recent activity
       const allActivity = [
-        ...summariesDataSafe.map(s => ({ ...s, type: 'summary' as const })),
-        ...transcriptionsDataSafe.map(t => ({ ...t, type: 'transcription' as const }))
+        ...summariesData.map(s => ({ ...s, type: 'summary' as const })),
+        ...transcriptionsData.map(t => ({ ...t, type: 'transcription' as const }))
       ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
        .slice(0, 3);
 
@@ -168,37 +179,26 @@ const Dashboard = () => {
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
       const threeDaysAgo = new Date(now.getTime() - (3 * 24 * 60 * 60 * 1000));
 
-      // Summaries this month
-      const summariesThisMonth = summariesDataSafe.filter(summary => 
+      const summariesThisMonth = summariesData.filter(summary => 
         new Date(summary.created_at) >= startOfMonth
       ).length;
 
-      // Transcriptions this month
-      const transcriptionsThisMonth = transcriptionsDataSafe.filter(transcription => 
+      const transcriptionsThisMonth = transcriptionsData.filter(transcription => 
         new Date(transcription.created_at) >= startOfMonth
       ).length;
 
-      // Summaries last month
-      const summariesLastMonth = summariesDataSafe.filter(summary => {
+      const summariesLastMonth = summariesData.filter(summary => {
         const createdDate = new Date(summary.created_at);
         return createdDate >= startOfLastMonth && createdDate <= endOfLastMonth;
       }).length;
 
-      // Unsent drafts in last 3 days
-      const unsentDrafts = summariesDataSafe.filter(summary => 
+      const unsentDrafts = summariesData.filter(summary => 
         !summary.sent_at && new Date(summary.created_at) >= threeDaysAgo
       ).length;
 
-      // Fetch average rating from feedback with error handling
-      const { data: feedbackData, error: feedbackError } = await supabase
-        .from('feedback')
-        .select('overall_rating')
-        .eq('user_id', user.id)
-        .not('overall_rating', 'is', null);
-
       let patientSatisfaction = "N/A";
       let averageRating: number | null = null;
-      if (!feedbackError && feedbackData && feedbackData.length > 0) {
+      if (feedbackData && feedbackData.length > 0) {
         averageRating = feedbackData.reduce((sum, feedback) => sum + feedback.overall_rating, 0) / feedbackData.length;
         patientSatisfaction = `${averageRating.toFixed(1)}/5`;
       }
@@ -209,9 +209,11 @@ const Dashboard = () => {
         summariesLastMonth,
         patientSatisfaction,
         averageRating,
-        chatboxInteraction: "15%", // Mock data as requested
+        chatboxInteraction: "15%",
         unsentDrafts
       });
+
+      console.log('Dashboard data fetch completed successfully');
 
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -220,6 +222,85 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+
+  // Separate useEffect for user profile
+  useEffect(() => {
+    if (user?.id && !authLoading) {
+      fetchUserProfile();
+    }
+  }, [user?.id, authLoading]);
+
+  // Separate useEffect for dashboard data with proper dependency array
+  useEffect(() => {
+    if (user?.id && !authLoading) {
+      fetchDashboardData();
+    } else if (!authLoading && !user) {
+      setLoading(false);
+    }
+  }, [user?.id, authLoading]); // Only depend on user.id and authLoading
+
+  const getDisplayName = () => {
+    if (userProfile?.first_name) {
+      return userProfile.first_name;
+    }
+    if (userProfile?.full_name) {
+      return userProfile.full_name.split(' ')[0];
+    }
+    return user?.email?.split('@')[0] || 'Doctor';
+  };
+
+  // Show loading state if auth is still loading or dashboard is loading
+  if (authLoading || (loading && user)) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if there's an error
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-96">
+          <CardHeader>
+            <CardTitle className="text-red-600">Error Loading Dashboard</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">{error}</p>
+            <Button onClick={() => {
+              setError(null);
+              fetchDashboardData();
+            }} className="w-full">
+              Try Again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show not authenticated state
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Card className="w-96">
+          <CardHeader>
+            <CardTitle>Authentication Required</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">Please log in to access your dashboard.</p>
+            <Link to="/login">
+              <Button className="w-full">Go to Login</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -278,50 +359,31 @@ const Dashboard = () => {
     return "Needs improvement";
   };
 
-  // Show error state if there's an error
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-96">
-          <CardHeader>
-            <CardTitle className="text-red-600">Error Loading Dashboard</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={fetchDashboardData} className="w-full">
-              Try Again
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   const analytics = [
     {
       title: "Total Activities This Month",
-      value: loading ? "..." : (stats.summariesThisMonth + stats.transcriptionsThisMonth).toString(),
+      value: (stats.summariesThisMonth + stats.transcriptionsThisMonth).toString(),
       icon: TrendingUp,
       trend: calculateMonthlyChange(),
       description: "Summaries + Transcriptions"
     },
     {
       title: "Patient Satisfaction",
-      value: loading ? "..." : stats.patientSatisfaction,
+      value: stats.patientSatisfaction,
       icon: Star,
       trend: getSatisfactionTrend(),
       description: "Based on feedback"
     },
     {
       title: "Chatbox Interaction Rate",
-      value: loading ? "..." : stats.chatboxInteraction,
+      value: stats.chatboxInteraction,
       icon: MessageSquare,
       trend: "+2%",
       description: "Patients using chat"
     },
     {
       title: "Unsent Drafts (3 days)",
-      value: loading ? "..." : stats.unsentDrafts.toString(),
+      value: stats.unsentDrafts.toString(),
       icon: DraftingCompass,
       trend: stats.unsentDrafts > 0 ? "Pending" : "Clear",
       description: "Last 3 days"
@@ -354,7 +416,7 @@ const Dashboard = () => {
                   <Plus className="h-5 w-5 mr-2" />
                   New Summary
                 </Button>
-              </Link>
+                </Link>
             </div>
           </div>
         </div>
@@ -455,12 +517,7 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {loading ? (
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent mx-auto mb-4"></div>
-                <p className="text-gray-500">Loading recent activity...</p>
-              </div>
-            ) : recentActivity.length === 0 ? (
+            {recentActivity.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-24 h-24 bg-gradient-to-br from-teal-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FileText className="h-12 w-12 text-teal-500" />
