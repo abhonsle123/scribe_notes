@@ -2,11 +2,16 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts"
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
+import { createSecureErrorResponse, logSecurityEvent, validateRequestSize } from '../_shared/errorHandler.ts';
+import { addSecurityHeaders } from '../_shared/securityHeaders.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+const secureHeaders = addSecurityHeaders(corsHeaders);
 
 // Process base64 in chunks to prevent memory issues
 function processBase64Chunks(base64String: string, chunkSize = 32768) {
@@ -40,14 +45,26 @@ function processBase64Chunks(base64String: string, chunkSize = 32768) {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response('ok', { headers: secureHeaders })
   }
 
   try {
+    // Validate request size (200MB limit for audio files)
+    if (!validateRequestSize(req, 200 * 1024 * 1024)) {
+      return createSecureErrorResponse('Audio file too large', 413, corsHeaders, 'transcribe-audio');
+    }
+
     // Get the authorization header to verify user authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      throw new Error('Authorization header is required');
+      logSecurityEvent({
+        type: 'auth_failure',
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        timestamp: new Date().toISOString(),
+        details: 'Missing authorization header'
+      });
+      return createSecureErrorResponse('Authentication required', 401, corsHeaders, 'transcribe-audio');
     }
 
     // Initialize Supabase client with the user's auth token
@@ -66,17 +83,45 @@ serve(async (req) => {
     // Verify the user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.error('Authentication error:', authError);
-      throw new Error('User authentication failed');
+      logSecurityEvent({
+        type: 'auth_failure',
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        timestamp: new Date().toISOString(),
+        details: 'Invalid authentication token'
+      });
+      return createSecureErrorResponse('User authentication failed', 401, corsHeaders, 'transcribe-audio');
+    }
+
+    // Check rate limiting (higher limit for transcription due to processing time)
+    const rateLimitResult = checkRateLimit(req, user.id);
+    if (!rateLimitResult.allowed) {
+      logSecurityEvent({
+        type: 'rate_limit',
+        userId: user.id,
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        timestamp: new Date().toISOString()
+      });
+      return createSecureErrorResponse('Too many requests', 429, {
+        ...corsHeaders,
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+      }, 'transcribe-audio');
     }
 
     const { audio, transcriptionId } = await req.json()
     
     if (!audio || !transcriptionId) {
-      throw new Error('Audio data and transcription ID are required')
+      return createSecureErrorResponse('Audio data and transcription ID are required', 400, corsHeaders, 'transcribe-audio');
     }
 
     console.log(`Processing transcription ${transcriptionId} for user ${user.id}`);
+
+    // Validate audio data size
+    const audioSizeBytes = (audio.length * 3) / 4; // Approximate base64 to bytes
+    if (audioSizeBytes > 200 * 1024 * 1024) { // 200MB limit
+      return createSecureErrorResponse('Audio file too large', 400, corsHeaders, 'transcribe-audio');
+    }
 
     // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio)
@@ -99,7 +144,7 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${errorText}`);
+      return createSecureErrorResponse('Transcription service error', 500, corsHeaders, 'transcribe-audio');
     }
 
     const result = await response.json()
@@ -122,11 +167,18 @@ serve(async (req) => {
 
     if (fetchError) {
       console.error('Error fetching transcription:', fetchError);
-      throw new Error(`Failed to verify transcription ownership: ${fetchError.message}`);
+      return createSecureErrorResponse('Transcription not found', 404, corsHeaders, 'transcribe-audio');
     }
 
     if (transcriptionData.user_id !== user.id) {
-      throw new Error('Unauthorized: Transcription does not belong to authenticated user');
+      logSecurityEvent({
+        type: 'unauthorized_access',
+        userId: user.id,
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        timestamp: new Date().toISOString(),
+        details: `Attempted access to transcription ${transcriptionId}`
+      });
+      return createSecureErrorResponse('Unauthorized access', 403, corsHeaders, 'transcribe-audio');
     }
 
     // Update the transcription with service role to bypass RLS
@@ -141,24 +193,24 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Database update error:', updateError);
-      throw new Error(`Failed to update transcription: ${updateError.message}`);
+      return createSecureErrorResponse('Failed to save transcription', 500, corsHeaders, 'transcribe-audio');
     }
 
     console.log(`Successfully updated transcription ${transcriptionId}`);
 
     return new Response(
       JSON.stringify({ text: transcriptionText, transcriptionId }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...secureHeaders, 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString()
+        } 
+      }
     )
 
   } catch (error) {
     console.error('Error in transcribe-audio function:', error)
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    )
+    return createSecureErrorResponse(error, 500, corsHeaders, 'transcribe-audio');
   }
 })

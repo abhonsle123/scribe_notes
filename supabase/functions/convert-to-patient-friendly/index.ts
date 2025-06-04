@@ -1,29 +1,39 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
+import { createSecureErrorResponse, logSecurityEvent, validateRequestSize } from '../_shared/errorHandler.ts';
+import { addSecurityHeaders } from '../_shared/securityHeaders.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const secureHeaders = addSecurityHeaders(corsHeaders);
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: secureHeaders });
   }
 
   try {
+    // Validate request size (100MB limit)
+    if (!validateRequestSize(req, 100 * 1024 * 1024)) {
+      return createSecureErrorResponse('Request too large', 413, corsHeaders, 'convert-to-patient-friendly');
+    }
+
     // Verify authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      logSecurityEvent({
+        type: 'auth_failure',
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        timestamp: new Date().toISOString(),
+        details: 'Missing authorization header'
+      });
+      return createSecureErrorResponse('Authentication required', 401, corsHeaders, 'convert-to-patient-friendly');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -31,13 +41,7 @@ serve(async (req) => {
     
     if (!supabaseUrl || !supabaseKey) {
       console.error('Missing Supabase configuration');
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Service configuration error', 500, corsHeaders, 'convert-to-patient-friendly');
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey, {
@@ -47,54 +51,66 @@ serve(async (req) => {
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.error('User authentication failed:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      logSecurityEvent({
+        type: 'auth_failure',
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        timestamp: new Date().toISOString(),
+        details: 'Invalid authentication token'
+      });
+      return createSecureErrorResponse('Invalid authentication', 401, corsHeaders, 'convert-to-patient-friendly');
+    }
+
+    // Check rate limiting
+    const rateLimitResult = checkRateLimit(req, user.id);
+    if (!rateLimitResult.allowed) {
+      logSecurityEvent({
+        type: 'rate_limit',
+        userId: user.id,
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        timestamp: new Date().toISOString()
+      });
+      return createSecureErrorResponse('Too many requests', 429, {
+        ...corsHeaders,
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+      }, 'convert-to-patient-friendly');
     }
 
     const { content, notes, fileData } = await req.json();
 
     // Input validation
     if (!content && !fileData) {
-      return new Response(
-        JSON.stringify({ error: 'Content or file data is required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Content or file data is required', 400, corsHeaders, 'convert-to-patient-friendly');
     }
 
-    // File size validation (100MB limit)
+    // File size validation (enhanced)
     if (fileData && fileData.data) {
       const fileSizeBytes = (fileData.data.length * 3) / 4; // Approximate base64 to bytes conversion
       const maxSizeBytes = 100 * 1024 * 1024; // 100MB
       if (fileSizeBytes > maxSizeBytes) {
-        return new Response(
-          JSON.stringify({ error: 'File size exceeds 100MB limit' }),
-          {
-            status: 400,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          }
-        );
+        return createSecureErrorResponse('File size exceeds 100MB limit', 400, corsHeaders, 'convert-to-patient-friendly');
+      }
+
+      // Validate file type
+      const allowedMimeTypes = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'text/plain'
+      ];
+      
+      if (fileData.mimeType && !allowedMimeTypes.includes(fileData.mimeType)) {
+        return createSecureErrorResponse('Unsupported file type', 400, corsHeaders, 'convert-to-patient-friendly');
       }
     }
 
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
       console.error('Google AI API key not configured');
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Service configuration error', 500, corsHeaders, 'convert-to-patient-friendly');
     }
 
     let userTemplate = null;
@@ -293,25 +309,13 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Gemini API error:', errorData);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate summary' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Failed to generate summary', 500, corsHeaders, 'convert-to-patient-friendly');
     }
 
     const data = await response.json();
     
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid response from AI service' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Invalid response from AI service', 500, corsHeaders, 'convert-to-patient-friendly');
     }
 
     const generatedSummary = data.candidates[0].content.parts[0].text;
@@ -327,22 +331,23 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
       }
     }
 
+    // Log successful operation
+    console.log(`Summary generated successfully for user ${user.id}`);
+
     return new Response(
       JSON.stringify({ summary: generatedSummary }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: { 
+          ...secureHeaders, 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString()
+        },
       }
     );
 
   } catch (error) {
     console.error('Error in convert-to-patient-friendly function:', error);
-    return new Response(
-      JSON.stringify({ error: 'An unexpected error occurred' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return createSecureErrorResponse(error, 500, corsHeaders, 'convert-to-patient-friendly');
   }
 });
 

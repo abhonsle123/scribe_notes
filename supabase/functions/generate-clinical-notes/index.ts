@@ -1,29 +1,39 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { checkRateLimit } from '../_shared/rateLimiter.ts';
+import { createSecureErrorResponse, logSecurityEvent, validateRequestSize } from '../_shared/errorHandler.ts';
+import { addSecurityHeaders } from '../_shared/securityHeaders.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const secureHeaders = addSecurityHeaders(corsHeaders);
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: secureHeaders });
   }
 
   try {
+    // Validate request size
+    if (!validateRequestSize(req, 10 * 1024 * 1024)) { // 10MB limit for transcriptions
+      return createSecureErrorResponse('Request too large', 413, corsHeaders, 'generate-clinical-notes');
+    }
+
     // Verify authentication
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Authentication required' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      logSecurityEvent({
+        type: 'auth_failure',
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        timestamp: new Date().toISOString(),
+        details: 'Missing authorization header'
+      });
+      return createSecureErrorResponse('Authentication required', 401, corsHeaders, 'generate-clinical-notes');
     }
 
     // Initialize Supabase client to verify user authentication
@@ -42,26 +52,41 @@ serve(async (req) => {
     // Verify the user is authenticated
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      console.error('Authentication error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Invalid authentication' }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      logSecurityEvent({
+        type: 'auth_failure',
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: req.headers.get('user-agent') || 'unknown',
+        timestamp: new Date().toISOString(),
+        details: 'Invalid authentication token'
+      });
+      return createSecureErrorResponse('Invalid authentication', 401, corsHeaders, 'generate-clinical-notes');
+    }
+
+    // Check rate limiting
+    const rateLimitResult = checkRateLimit(req, user.id);
+    if (!rateLimitResult.allowed) {
+      logSecurityEvent({
+        type: 'rate_limit',
+        userId: user.id,
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        timestamp: new Date().toISOString()
+      });
+      return createSecureErrorResponse('Too many requests', 429, {
+        ...corsHeaders,
+        'X-RateLimit-Remaining': '0',
+        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
+      }, 'generate-clinical-notes');
     }
 
     const { transcriptionText, transcriptionId } = await req.json();
 
     if (!transcriptionText || !transcriptionId) {
-      return new Response(
-        JSON.stringify({ error: 'Transcription text and ID are required' }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Transcription text and ID are required', 400, corsHeaders, 'generate-clinical-notes');
+    }
+
+    // Validate transcription text length
+    if (transcriptionText.length > 50000) { // 50KB limit
+      return createSecureErrorResponse('Transcription text too long', 400, corsHeaders, 'generate-clinical-notes');
     }
 
     // Verify the transcription belongs to the authenticated user
@@ -73,36 +98,24 @@ serve(async (req) => {
 
     if (fetchError) {
       console.error('Error fetching transcription:', fetchError);
-      return new Response(
-        JSON.stringify({ error: 'Transcription not found' }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Transcription not found', 404, corsHeaders, 'generate-clinical-notes');
     }
 
     if (transcriptionData.user_id !== user.id) {
-      console.error('Unauthorized access attempt for transcription:', transcriptionId, 'by user:', user.id);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized access' }),
-        {
-          status: 403,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      logSecurityEvent({
+        type: 'unauthorized_access',
+        userId: user.id,
+        ip: req.headers.get('x-forwarded-for') || 'unknown',
+        timestamp: new Date().toISOString(),
+        details: `Attempted access to transcription ${transcriptionId}`
+      });
+      return createSecureErrorResponse('Unauthorized access', 403, corsHeaders, 'generate-clinical-notes');
     }
 
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openaiApiKey) {
       console.error('OpenAI API key not configured');
-      return new Response(
-        JSON.stringify({ error: 'Service configuration error' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Service configuration error', 500, corsHeaders, 'generate-clinical-notes');
     }
 
     // Generate clinical notes
@@ -172,13 +185,7 @@ Use warm, reassuring language that patients can easily understand. Avoid medical
 
     if (!clinicalNotesResponse.ok || !patientSummaryResponse.ok) {
       console.error('OpenAI API error - Clinical Notes OK:', clinicalNotesResponse.ok, 'Patient Summary OK:', patientSummaryResponse.ok);
-      return new Response(
-        JSON.stringify({ error: 'Failed to generate notes and summary' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Failed to generate notes and summary', 500, corsHeaders, 'generate-clinical-notes');
     }
 
     const clinicalNotesData = await clinicalNotesResponse.json();
@@ -205,13 +212,7 @@ Use warm, reassuring language that patients can easily understand. Avoid medical
 
     if (updateError) {
       console.error('Failed to update transcription:', updateError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to save generated content' }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        }
-      );
+      return createSecureErrorResponse('Failed to save generated content', 500, corsHeaders, 'generate-clinical-notes');
     }
 
     console.log('Successfully generated and saved clinical notes and patient summary for transcription:', transcriptionId);
@@ -222,17 +223,17 @@ Use warm, reassuring language that patients can easily understand. Avoid medical
         patientSummary,
         transcriptionId 
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { 
+          ...secureHeaders, 
+          'Content-Type': 'application/json',
+          'X-RateLimit-Remaining': rateLimitResult.remaining.toString()
+        } 
+      }
     );
 
   } catch (error) {
     console.error('Error in generate-clinical-notes function:', error);
-    return new Response(
-      JSON.stringify({ error: 'An unexpected error occurred' }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+    return createSecureErrorResponse(error, 500, corsHeaders, 'generate-clinical-notes');
   }
 });
