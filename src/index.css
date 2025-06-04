@@ -104,31 +104,6 @@
     @apply font-semibold;
     line-height: 1.2;
   }
-
-  /* Smooth scrolling for all elements */
-  html {
-    scroll-behavior: smooth;
-  }
-
-  /* Intersection Observer animations */
-  section {
-    opacity: 0;
-    transform: translateY(50px);
-    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
-  }
-
-  section.animate-fade-in-up {
-    animation: fadeInUpSection 0.8s ease-out forwards;
-  }
-
-  /* Auto-trigger animations when sections come into view */
-  section:nth-child(odd) {
-    animation-delay: 0.1s;
-  }
-
-  section:nth-child(even) {
-    animation-delay: 0.2s;
-  }
 }
 
 @layer components {
@@ -149,7 +124,7 @@
   }
 
   .animate-fade-in-up {
-    animation: fadeInUp 1s ease-out forwards;
+    animation: fadeInUp 1s ease-out;
   }
 
   .hover-lift {
@@ -186,25 +161,8 @@
 }
 
 @keyframes fadeInUp {
-  0% { 
-    opacity: 0; 
-    transform: translateY(30px); 
-  }
-  100% { 
-    opacity: 1; 
-    transform: translateY(0px); 
-  }
-}
-
-@keyframes fadeInUpSection {
-  0% { 
-    opacity: 0; 
-    transform: translateY(50px); 
-  }
-  100% { 
-    opacity: 1; 
-    transform: translateY(0px); 
-  }
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0px); }
 }
 
 @keyframes pulse-gentle {
@@ -214,18 +172,4 @@
 
 .animate-pulse-gentle {
   animation: pulse-gentle 3s ease-in-out infinite;
-}
-
-/* Scroll-triggered animations using Intersection Observer */
-@media (prefers-reduced-motion: no-preference) {
-  .scroll-animate {
-    opacity: 0;
-    transform: translateY(30px);
-    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
-  }
-
-  .scroll-animate.in-view {
-    opacity: 1;
-    transform: translateY(0);
-  }
 }
