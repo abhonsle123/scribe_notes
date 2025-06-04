@@ -20,7 +20,7 @@ import {
   Download
 } from "lucide-react";
 import { processFile } from "@/utils/fileProcessor";
-import EmailSummaryForm from "@/components/EmailSummaryForm";
+import { EmailSummaryForm } from "@/components/EmailSummaryForm";
 
 const NewSummary = () => {
   const { user } = useAuth();
@@ -326,7 +326,7 @@ const NewSummary = () => {
           summaryId=""
           patientName={patientName}
           summaryContent={summary}
-          onClose={handleCloseEmailForm}
+          onEmailSent={handleCloseEmailForm}
         />
       )}
     </div>

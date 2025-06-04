@@ -1,4 +1,3 @@
-
 export const extractTextFromFile = async (file: File): Promise<string> => {
   try {
     // Handle text files directly
@@ -28,6 +27,9 @@ export const extractTextFromFile = async (file: File): Promise<string> => {
     throw new Error(`Failed to extract text from ${file.name}: ${error.message}`);
   }
 };
+
+// Export processFile as an alias for extractTextFromFile
+export const processFile = extractTextFromFile;
 
 const extractTextFromWord = async (file: File): Promise<string> => {
   try {
