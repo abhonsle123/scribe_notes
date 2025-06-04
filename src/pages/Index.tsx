@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,10 +40,64 @@ const Index = () => {
     providersUsingLiaise: 0
   });
   const [loading, setLoading] = useState(true);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const [animatedStats, setAnimatedStats] = useState<RealStats>({
+    totalSummaries: 0,
+    patientsImpacted: 0,
+    averageRating: null,
+    providersUsingLiaise: 0
+  });
+  const statsRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     fetchGlobalStats();
   }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !hasAnimated && !loading) {
+          setHasAnimated(true);
+          animateNumbers();
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (statsRef.current) {
+      observer.observe(statsRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasAnimated, loading]);
+
+  const animateNumbers = () => {
+    const duration = 2000; // 2 seconds
+    const frameRate = 60;
+    const totalFrames = (duration / 1000) * frameRate;
+    let frame = 0;
+
+    const animate = () => {
+      frame++;
+      const progress = frame / totalFrames;
+      const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+
+      setAnimatedStats({
+        totalSummaries: Math.floor(stats.totalSummaries * easeProgress),
+        patientsImpacted: Math.floor(stats.patientsImpacted * easeProgress),
+        averageRating: stats.averageRating ? Number((stats.averageRating * easeProgress).toFixed(1)) : null,
+        providersUsingLiaise: Math.floor(stats.providersUsingLiaise * easeProgress)
+      });
+
+      if (frame < totalFrames) {
+        requestAnimationFrame(animate);
+      } else {
+        setAnimatedStats(stats); // Ensure we end with exact values
+      }
+    };
+
+    requestAnimationFrame(animate);
+  };
 
   const fetchGlobalStats = async () => {
     try {
@@ -69,28 +123,28 @@ const Index = () => {
     {
       icon: FileText,
       title: "Summaries Generated",
-      value: loading ? "..." : stats.totalSummaries.toLocaleString(),
+      value: loading ? "..." : animatedStats.totalSummaries.toLocaleString(),
       description: "Medical reports transformed",
       gradient: "from-turquoise to-sky-blue"
     },
     {
       icon: Users,
       title: "Patients Impacted",
-      value: loading ? "..." : stats.patientsImpacted.toLocaleString(),
+      value: loading ? "..." : animatedStats.patientsImpacted.toLocaleString(),
       description: "Unique patients reached",
       gradient: "from-sky-blue to-lavender"
     },
     {
       icon: Star,
       title: "Average Rating",
-      value: loading ? "..." : stats.averageRating ? `${stats.averageRating.toFixed(1)}/5` : "No data",
+      value: loading ? "..." : animatedStats.averageRating ? `${animatedStats.averageRating}/5` : "No data",
       description: "User satisfaction score",
       gradient: "from-lavender to-turquoise"
     },
     {
       icon: Stethoscope,
       title: "Providers Using Liaise",
-      value: loading ? "..." : stats.providersUsingLiaise.toLocaleString(),
+      value: loading ? "..." : animatedStats.providersUsingLiaise.toLocaleString(),
       description: "Healthcare professionals served",
       gradient: "from-turquoise to-lavender"
     }
@@ -238,7 +292,7 @@ const Index = () => {
       </section>
 
       {/* Real Impact Section */}
-      <section className="py-20 bg-white/50 backdrop-blur-sm">
+      <section ref={statsRef} className="py-20 bg-white/50 backdrop-blur-sm">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
