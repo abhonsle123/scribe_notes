@@ -47,46 +47,17 @@ const Index = () => {
 
   const fetchGlobalStats = async () => {
     try {
-      // Fetch all summaries from all accounts
-      const { data: summariesData, error: summariesError } = await supabase
-        .from('summaries')
-        .select('id, patient_email, sent_at, user_id');
+      // Call the edge function to get global statistics
+      const { data, error } = await supabase.functions.invoke('get-global-stats');
 
-      if (summariesError) {
-        console.error('Error fetching summaries:', summariesError);
+      if (error) {
+        console.error('Error fetching global stats:', error);
+        return;
       }
 
-      // Count total summaries across all accounts
-      const totalSummaries = summariesData?.length || 0;
-
-      // Count unique patients impacted (summaries with emails that were sent) across all accounts
-      const sentSummariesWithEmail = summariesData?.filter(s => s.sent_at && s.patient_email) || [];
-      const uniqueEmails = new Set(sentSummariesWithEmail.map(s => s.patient_email));
-
-      // Count unique providers (users) who have created summaries
-      const uniqueProviders = new Set(summariesData?.map(s => s.user_id) || []);
-
-      // Fetch feedback data from all accounts
-      const { data: feedbackData, error: feedbackError } = await supabase
-        .from('feedback')
-        .select('overall_rating')
-        .not('overall_rating', 'is', null);
-
-      if (feedbackError) {
-        console.error('Error fetching feedback:', feedbackError);
+      if (data) {
+        setStats(data);
       }
-
-      let averageRating: number | null = null;
-      if (feedbackData && feedbackData.length > 0) {
-        averageRating = feedbackData.reduce((sum, f) => sum + f.overall_rating, 0) / feedbackData.length;
-      }
-
-      setStats({
-        totalSummaries,
-        patientsImpacted: uniqueEmails.size,
-        averageRating,
-        providersUsingLiaise: uniqueProviders.size
-      });
     } catch (error) {
       console.error('Error fetching global stats:', error);
     } finally {
