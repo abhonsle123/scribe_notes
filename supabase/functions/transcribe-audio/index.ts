@@ -38,13 +38,38 @@ function processBase64Chunks(base64String: string, chunkSize = 32768) {
   return result;
 }
 
+// Calculate audio duration from WebM blob
+async function getAudioDuration(audioBlob: Blob): Promise<number> {
+  try {
+    // Create a temporary audio element to get duration
+    const audioUrl = URL.createObjectURL(audioBlob);
+    
+    return new Promise((resolve) => {
+      const audio = new Audio();
+      audio.onloadedmetadata = () => {
+        const duration = audio.duration;
+        URL.revokeObjectURL(audioUrl);
+        resolve(isNaN(duration) ? 0 : Math.round(duration));
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        resolve(0);
+      };
+      audio.src = audioUrl;
+    });
+  } catch (error) {
+    console.error('Error calculating audio duration:', error);
+    return 0;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { audio, transcriptionId } = await req.json()
+    const { audio, transcriptionId, recordingDuration } = await req.json()
     
     if (!audio || !transcriptionId) {
       throw new Error('Audio data and transcription ID are required')
@@ -73,6 +98,13 @@ serve(async (req) => {
     // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio)
     
+    // Create blob and calculate duration
+    const audioBlob = new Blob([binaryAudio], { type: 'audio/webm' })
+    const calculatedDuration = await getAudioDuration(audioBlob)
+    
+    // Use the more accurate duration (prefer recordingDuration from frontend if available)
+    const finalDuration = recordingDuration && recordingDuration > 0 ? Math.round(recordingDuration) : calculatedDuration
+    
     // Generate unique filename for storage
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const audioFileName = `${user.id}/${transcriptionId}-${timestamp}.webm`
@@ -92,8 +124,7 @@ serve(async (req) => {
 
     // Prepare form data for Whisper
     const formData = new FormData()
-    const blob = new Blob([binaryAudio], { type: 'audio/webm' })
-    formData.append('file', blob, 'audio.webm')
+    formData.append('file', audioBlob, 'audio.webm')
     formData.append('model', 'whisper-1')
 
     // Send to OpenAI Whisper
@@ -112,15 +143,16 @@ serve(async (req) => {
     const result = await response.json()
     const transcriptionText = result.text
 
-    // Update the transcription record with the text and audio file path
+    // Update the transcription record with the text, audio file path, and duration
     const updateData: any = { 
       transcription_text: transcriptionText,
       updated_at: new Date().toISOString()
     }
 
-    // Only set audio_file_path if upload was successful
+    // Only set audio_file_path and duration if upload was successful
     if (!uploadError) {
       updateData.audio_file_path = audioFileName
+      updateData.audio_duration = finalDuration
     }
 
     const { error: updateError } = await supabase

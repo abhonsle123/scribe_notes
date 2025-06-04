@@ -17,6 +17,7 @@ export const AudioPlayer = ({ audioFilePath, transcriptionId }: AudioPlayerProps
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const progressRef = useRef<HTMLDivElement | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,34 +69,53 @@ export const AudioPlayer = ({ audioFilePath, transcriptionId }: AudioPlayerProps
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
+      const currentTime = audioRef.current.currentTime;
+      const duration = audioRef.current.duration;
+      
+      // Ensure we have valid values before updating state
+      if (!isNaN(currentTime)) {
+        setCurrentTime(currentTime);
+      }
+      if (!isNaN(duration) && duration > 0) {
+        setDuration(duration);
+      }
     }
   };
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
-      setDuration(audioRef.current.duration);
+      const duration = audioRef.current.duration;
+      if (!isNaN(duration) && duration > 0) {
+        setDuration(duration);
+      }
     }
   };
 
   const handleEnded = () => {
     setIsPlaying(false);
-    setCurrentTime(0);
+    if (audioRef.current) {
+      audioRef.current.currentTime = 0;
+      setCurrentTime(0);
+    }
   };
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || !progressRef.current || duration <= 0) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    const newTime = percent * duration;
+    const rect = progressRef.current.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const progressWidth = rect.width;
+    
+    // Calculate the percentage of where the user clicked
+    const clickPercent = Math.max(0, Math.min(1, clickX / progressWidth));
+    const newTime = clickPercent * duration;
     
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
   };
 
   const formatTime = (time: number) => {
-    if (isNaN(time)) return "0:00";
+    if (isNaN(time) || time < 0) return "0:00";
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -131,6 +151,9 @@ export const AudioPlayer = ({ audioFilePath, transcriptionId }: AudioPlayerProps
     }
   };
 
+  // Calculate progress percentage with proper validation
+  const progressPercentage = duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+
   if (!audioFilePath) {
     return (
       <div className="text-sm text-gray-500 italic">
@@ -162,12 +185,13 @@ export const AudioPlayer = ({ audioFilePath, transcriptionId }: AudioPlayerProps
 
         <div className="flex-1 space-y-2">
           <div 
+            ref={progressRef}
             className="h-2 bg-purple-200 rounded-full cursor-pointer relative"
             onClick={handleSeek}
           >
             <div 
               className="h-full bg-purple-500 rounded-full transition-all duration-100"
-              style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+              style={{ width: `${progressPercentage}%` }}
             />
           </div>
           
