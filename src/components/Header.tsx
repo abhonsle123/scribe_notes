@@ -47,9 +47,15 @@ const Header = () => {
             
             {user ? (
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">
-                  Welcome, {user.email}
-                </span>
+                <Link to="/contact">
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+                  >
+                    Contact us
+                  </Button>
+                </Link>
                 <Button 
                   onClick={handleSignOut}
                   variant="outline"
@@ -97,9 +103,16 @@ const Header = () => {
               
               {user ? (
                 <div className="px-3 py-2 space-y-2">
-                  <div className="text-sm text-gray-600">
-                    Welcome, {user.email}
-                  </div>
+                  <Link to="/contact">
+                    <Button 
+                      variant="outline"
+                      size="sm"
+                      className="w-full bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      Contact us
+                    </Button>
+                  </Link>
                   <Button 
                     onClick={handleSignOut}
                     variant="outline"
