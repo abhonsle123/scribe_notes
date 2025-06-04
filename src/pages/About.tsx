@@ -156,11 +156,12 @@ const About = () => {
                     <CardContent className="p-8 h-full flex flex-col justify-center">
                       <h3 className="text-xl font-bold text-slate-900 mb-4">Kevin Gencel</h3>
                       <p className="text-slate-600 text-sm leading-relaxed">
-                        Kevin brings over 15 years of experience in healthcare technology and entrepreneurship. 
-                        He previously founded two successful health tech startups and has a deep passion for 
-                        improving patient outcomes through innovative technology solutions. Kevin holds an MBA 
-                        from Stanford and a BS in Computer Science from MIT. When he's not working, he enjoys 
-                        hiking and spending time with his family.
+                        Kevin is an undergraduate student at UNC Chapel Hill with a strong pre-med research background. 
+                        His passion for healthcare and technology led him to co-found Liaise, where he combines his 
+                        understanding of medical communication challenges with innovative AI solutions. Kevin's pre-med 
+                        research experience gives him unique insights into the complexities of healthcare terminology 
+                        and the critical need for clear patient communication. He is dedicated to bridging the gap 
+                        between medical professionals and patients through accessible technology.
                       </p>
                     </CardContent>
                   </Card>
@@ -190,11 +191,12 @@ const About = () => {
                     <CardContent className="p-8 h-full flex flex-col justify-center">
                       <h3 className="text-xl font-bold text-slate-900 mb-4">Arjun Bhonsle</h3>
                       <p className="text-slate-600 text-sm leading-relaxed">
-                        Arjun is a seasoned AI/ML engineer with expertise in natural language processing and 
-                        healthcare applications. He has published numerous papers on medical AI and holds a PhD 
-                        in Computer Science from Carnegie Mellon. Before co-founding Liaise, Arjun led AI research 
-                        teams at major tech companies, focusing on healthcare communication technologies. He's 
-                        passionate about making AI accessible and beneficial for healthcare providers and patients alike.
+                        Arjun is an undergraduate student at UNC Chapel Hill with a background in computer science 
+                        and finance. His unique combination of technical expertise and financial acumen enables him 
+                        to architect robust AI solutions while ensuring sustainable business growth. Arjun's computer 
+                        science knowledge drives the development of Liaise's advanced natural language processing 
+                        capabilities, while his finance background helps shape the company's strategic direction and 
+                        scalable technology infrastructure.
                       </p>
                     </CardContent>
                   </Card>
