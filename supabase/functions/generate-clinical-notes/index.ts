@@ -1,128 +1,30 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { checkRateLimit } from '../_shared/rateLimiter.ts';
-import { createSecureErrorResponse, logSecurityEvent, validateRequestSize } from '../_shared/errorHandler.ts';
-import { addSecurityHeaders } from '../_shared/securityHeaders.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const secureHeaders = addSecurityHeaders(corsHeaders);
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: secureHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate request size
-    if (!validateRequestSize(req, 10 * 1024 * 1024)) { // 10MB limit for transcriptions
-      return createSecureErrorResponse('Request too large', 413, corsHeaders, 'generate-clinical-notes');
-    }
-
-    // Verify authentication
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      logSecurityEvent({
-        type: 'auth_failure',
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: req.headers.get('user-agent') || 'unknown',
-        timestamp: new Date().toISOString(),
-        details: 'Missing authorization header'
-      });
-      return createSecureErrorResponse('Authentication required', 401, corsHeaders, 'generate-clinical-notes');
-    }
-
-    // Initialize Supabase client to verify user authentication
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: {
-            authorization: authHeader,
-          },
-        },
-      }
-    );
-
-    // Verify the user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      logSecurityEvent({
-        type: 'auth_failure',
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: req.headers.get('user-agent') || 'unknown',
-        timestamp: new Date().toISOString(),
-        details: 'Invalid authentication token'
-      });
-      return createSecureErrorResponse('Invalid authentication', 401, corsHeaders, 'generate-clinical-notes');
-    }
-
-    // Check rate limiting
-    const rateLimitResult = checkRateLimit(req, user.id);
-    if (!rateLimitResult.allowed) {
-      logSecurityEvent({
-        type: 'rate_limit',
-        userId: user.id,
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        timestamp: new Date().toISOString()
-      });
-      return createSecureErrorResponse('Too many requests', 429, {
-        ...corsHeaders,
-        'X-RateLimit-Remaining': '0',
-        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
-      }, 'generate-clinical-notes');
-    }
-
     const { transcriptionText, transcriptionId } = await req.json();
 
     if (!transcriptionText || !transcriptionId) {
-      return createSecureErrorResponse('Transcription text and ID are required', 400, corsHeaders, 'generate-clinical-notes');
-    }
-
-    // Validate transcription text length
-    if (transcriptionText.length > 50000) { // 50KB limit
-      return createSecureErrorResponse('Transcription text too long', 400, corsHeaders, 'generate-clinical-notes');
-    }
-
-    // Verify the transcription belongs to the authenticated user
-    const { data: transcriptionData, error: fetchError } = await supabase
-      .from('transcriptions')
-      .select('user_id')
-      .eq('id', transcriptionId)
-      .single();
-
-    if (fetchError) {
-      console.error('Error fetching transcription:', fetchError);
-      return createSecureErrorResponse('Transcription not found', 404, corsHeaders, 'generate-clinical-notes');
-    }
-
-    if (transcriptionData.user_id !== user.id) {
-      logSecurityEvent({
-        type: 'unauthorized_access',
-        userId: user.id,
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        timestamp: new Date().toISOString(),
-        details: `Attempted access to transcription ${transcriptionId}`
-      });
-      return createSecureErrorResponse('Unauthorized access', 403, corsHeaders, 'generate-clinical-notes');
-    }
-
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      console.error('OpenAI API key not configured');
-      return createSecureErrorResponse('Service configuration error', 500, corsHeaders, 'generate-clinical-notes');
+      throw new Error('Transcription text and ID are required');
     }
 
     // Generate clinical notes
     const clinicalNotesResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -155,7 +57,7 @@ Use professional medical language appropriate for healthcare providers. Be thoro
     const patientSummaryResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Authorization': `Bearer ${Deno.env.get('OPENAI_API_KEY')}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -184,8 +86,7 @@ Use warm, reassuring language that patients can easily understand. Avoid medical
     });
 
     if (!clinicalNotesResponse.ok || !patientSummaryResponse.ok) {
-      console.error('OpenAI API error - Clinical Notes OK:', clinicalNotesResponse.ok, 'Patient Summary OK:', patientSummaryResponse.ok);
-      return createSecureErrorResponse('Failed to generate notes and summary', 500, corsHeaders, 'generate-clinical-notes');
+      throw new Error('Failed to generate notes and summary');
     }
 
     const clinicalNotesData = await clinicalNotesResponse.json();
@@ -194,13 +95,13 @@ Use warm, reassuring language that patients can easily understand. Avoid medical
     const clinicalNotes = clinicalNotesData.choices[0].message.content;
     const patientSummary = patientSummaryData.choices[0].message.content;
 
-    // Update the transcription record with the generated content using service role
-    const supabaseServiceRole = createClient(
+    // Update the transcription record with the generated content
+    const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { error: updateError } = await supabaseServiceRole
+    const { error: updateError } = await supabase
       .from('transcriptions')
       .update({ 
         clinical_notes: clinicalNotes,
@@ -208,14 +109,10 @@ Use warm, reassuring language that patients can easily understand. Avoid medical
         updated_at: new Date().toISOString()
       })
       .eq('id', transcriptionId)
-      .eq('user_id', user.id) // Extra security check
 
     if (updateError) {
-      console.error('Failed to update transcription:', updateError);
-      return createSecureErrorResponse('Failed to save generated content', 500, corsHeaders, 'generate-clinical-notes');
+      throw new Error(`Failed to update transcription: ${updateError.message}`)
     }
-
-    console.log('Successfully generated and saved clinical notes and patient summary for transcription:', transcriptionId);
 
     return new Response(
       JSON.stringify({ 
@@ -223,17 +120,17 @@ Use warm, reassuring language that patients can easily understand. Avoid medical
         patientSummary,
         transcriptionId 
       }),
-      { 
-        headers: { 
-          ...secureHeaders, 
-          'Content-Type': 'application/json',
-          'X-RateLimit-Remaining': rateLimitResult.remaining.toString()
-        } 
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Error in generate-clinical-notes function:', error);
-    return createSecureErrorResponse(error, 500, corsHeaders, 'generate-clinical-notes');
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });

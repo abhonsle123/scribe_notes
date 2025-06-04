@@ -16,43 +16,6 @@ interface EmailSummaryFormProps {
   onEmailSent: () => void;
 }
 
-const validateEmail = (email: string): { isValid: boolean; error?: string } => {
-  // Basic format validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(email)) {
-    return { isValid: false, error: "Please enter a valid email address format" };
-  }
-
-  // Length validation
-  if (email.length > 254) {
-    return { isValid: false, error: "Email address is too long" };
-  }
-
-  // Local part validation (before @)
-  const [localPart, domain] = email.split('@');
-  if (localPart.length > 64) {
-    return { isValid: false, error: "Email address local part is too long" };
-  }
-
-  // Domain validation
-  if (domain.length > 253) {
-    return { isValid: false, error: "Email domain is too long" };
-  }
-
-  // Check for consecutive dots
-  if (email.includes('..')) {
-    return { isValid: false, error: "Email address cannot contain consecutive dots" };
-  }
-
-  // Check for valid characters
-  const validChars = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9.-]+$/;
-  if (!validChars.test(email)) {
-    return { isValid: false, error: "Email address contains invalid characters" };
-  }
-
-  return { isValid: true };
-};
-
 export const EmailSummaryForm = ({ 
   summaryId, 
   patientName, 
@@ -60,27 +23,14 @@ export const EmailSummaryForm = ({
   onEmailSent 
 }: EmailSummaryFormProps) => {
   const [patientEmail, setPatientEmail] = useState("");
-  const [emailError, setEmailError] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [sendFollowUp, setSendFollowUp] = useState(true);
   const [followUpSent, setFollowUpSent] = useState(false);
   const { toast } = useToast();
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const email = e.target.value;
-    setPatientEmail(email);
-    
-    // Clear error when user starts typing
-    if (emailError && email.length > 0) {
-      setEmailError("");
-    }
-  };
-
   const handleSendEmail = async () => {
-    // Validate email
-    if (!patientEmail.trim()) {
-      setEmailError("Email address is required");
+    if (!patientEmail) {
       toast({
         title: "Email Required",
         description: "Please enter the patient's email address.",
@@ -89,29 +39,18 @@ export const EmailSummaryForm = ({
       return;
     }
 
-    const validation = validateEmail(patientEmail.trim());
-    if (!validation.isValid) {
-      setEmailError(validation.error || "Invalid email address");
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(patientEmail)) {
       toast({
         title: "Invalid Email",
-        description: validation.error || "Please enter a valid email address.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validate summary content
-    if (!summaryContent || summaryContent.trim().length === 0) {
-      toast({
-        title: "No Content",
-        description: "Cannot send email - no summary content available.",
+        description: "Please enter a valid email address.",
         variant: "destructive"
       });
       return;
     }
 
     setIsSending(true);
-    setEmailError("");
 
     try {
       console.log('Sending email for summary:', summaryId);
@@ -119,8 +58,8 @@ export const EmailSummaryForm = ({
       const { data, error } = await supabase.functions.invoke('send-summary-email', {
         body: {
           summaryId,
-          patientEmail: patientEmail.trim(),
-          patientName: patientName.trim(),
+          patientEmail,
+          patientName,
           summaryContent
         }
       });
@@ -137,7 +76,7 @@ export const EmailSummaryForm = ({
 
       toast({
         title: "Email Sent Successfully",
-        description: `Medical summary has been sent to ${patientEmail.trim()}`,
+        description: `Medical summary has been sent to ${patientEmail}`,
       });
 
       // Send follow-up email if requested
@@ -148,8 +87,8 @@ export const EmailSummaryForm = ({
           const { data: followUpData, error: followUpError } = await supabase.functions.invoke('send-follow-up-email', {
             body: {
               summaryId,
-              patientEmail: patientEmail.trim(),
-              patientName: patientName.trim()
+              patientEmail,
+              patientName
             }
           });
 
@@ -176,7 +115,6 @@ export const EmailSummaryForm = ({
 
     } catch (error: any) {
       console.error('Failed to send email:', error);
-      setEmailError("Failed to send email. Please check the email address and try again.");
       toast({
         title: "Failed to Send Email",
         description: error.message || "Please try again or contact support.",
@@ -243,13 +181,9 @@ export const EmailSummaryForm = ({
             type="email"
             placeholder="patient@example.com"
             value={patientEmail}
-            onChange={handleEmailChange}
+            onChange={(e) => setPatientEmail(e.target.value)}
             disabled={isSending}
-            className={emailError ? "border-red-500 focus-visible:ring-red-500" : ""}
           />
-          {emailError && (
-            <p className="text-sm text-red-600">{emailError}</p>
-          )}
         </div>
         
         <div className="flex items-center space-x-2">
@@ -267,7 +201,7 @@ export const EmailSummaryForm = ({
         <div className="flex space-x-3">
           <Button 
             onClick={handleSendEmail}
-            disabled={isSending || !patientEmail.trim() || !!emailError}
+            disabled={isSending || !patientEmail}
             className="bg-blue-600 hover:bg-blue-700 flex items-center"
           >
             <Send className="h-4 w-4 mr-2" />

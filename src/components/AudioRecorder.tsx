@@ -10,13 +10,6 @@ interface AudioRecorderProps {
   isProcessing: boolean;
 }
 
-const MAX_FILE_SIZE_MB = 100;
-const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const ALLOWED_AUDIO_TYPES = [
-  'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/webm', 
-  'audio/ogg', 'audio/m4a', 'audio/aac', 'audio/flac'
-];
-
 export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioURL, setAudioURL] = useState<string | null>(null);
@@ -28,30 +21,6 @@ export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
-
-  const validateAudioFile = (file: File): boolean => {
-    // Check file size
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      toast({
-        title: "File Too Large",
-        description: `File size must be less than ${MAX_FILE_SIZE_MB}MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.`,
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    // Check file type
-    if (!ALLOWED_AUDIO_TYPES.includes(file.type)) {
-      toast({
-        title: "Invalid File Type",
-        description: "Please select a valid audio file (MP3, WAV, WebM, OGG, M4A, AAC, or FLAC).",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    return true;
-  };
 
   const startRecording = async () => {
     try {
@@ -78,18 +47,6 @@ export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps
 
       mediaRecorder.onstop = () => {
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
-        
-        // Validate recording size
-        if (audioBlob.size > MAX_FILE_SIZE_BYTES) {
-          toast({
-            title: "Recording Too Large",
-            description: `Recording size must be less than ${MAX_FILE_SIZE_MB}MB. Please record a shorter audio.`,
-            variant: "destructive"
-          });
-          chunksRef.current = [];
-          return;
-        }
-        
         const url = URL.createObjectURL(audioBlob);
         setAudioURL(url);
         
@@ -152,19 +109,18 @@ export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (validateAudioFile(file)) {
+      if (file.type.startsWith('audio/')) {
         const url = URL.createObjectURL(file);
         setAudioURL(url);
         onAudioReady(file, file.name);
-        
+      } else {
         toast({
-          title: "File Uploaded",
-          description: "Audio file uploaded successfully",
+          title: "Invalid File",
+          description: "Please select an audio file",
+          variant: "destructive"
         });
       }
     }
-    // Reset input value to allow re-uploading the same file
-    event.target.value = '';
   };
 
   const useRecording = () => {
@@ -238,14 +194,11 @@ export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps
         {/* File Upload */}
         <div className="relative">
           <div className="text-center">
-            <p className="text-gray-500 mb-2">Or upload an audio file</p>
-            <p className="text-xs text-gray-400 mb-4">
-              Supported formats: MP3, WAV, WebM, OGG, M4A, AAC, FLAC (max {MAX_FILE_SIZE_MB}MB)
-            </p>
+            <p className="text-gray-500 mb-4">Or upload an audio file</p>
             <label className="cursor-pointer">
               <input
                 type="file"
-                accept={ALLOWED_AUDIO_TYPES.join(',')}
+                accept="audio/*"
                 onChange={handleFileUpload}
                 className="hidden"
                 disabled={isProcessing || isRecording}

@@ -1,8 +1,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 import { corsHeaders } from '../_shared/cors.ts'
-import { addSecurityHeaders } from '../_shared/securityHeaders.ts'
-import { createSecureErrorResponse } from '../_shared/errorHandler.ts'
 
 interface GlobalStats {
   totalSummaries: number;
@@ -31,12 +29,7 @@ Deno.serve(async (req) => {
 
     if (summariesError) {
       console.error('Error fetching summaries:', summariesError);
-      return createSecureErrorResponse(
-        'Failed to fetch statistics',
-        500,
-        corsHeaders,
-        'get-global-stats'
-      );
+      throw summariesError;
     }
 
     // Count total summaries across all accounts
@@ -57,7 +50,7 @@ Deno.serve(async (req) => {
 
     if (feedbackError) {
       console.error('Error fetching feedback:', feedbackError);
-      // Continue without feedback data instead of failing
+      throw feedbackError;
     }
 
     let averageRating: number | null = null;
@@ -72,22 +65,21 @@ Deno.serve(async (req) => {
       providersUsingLiaise: uniqueProviders.size
     };
 
-    const headers = addSecurityHeaders({ ...corsHeaders, 'Content-Type': 'application/json' });
-
     return new Response(
       JSON.stringify(stats),
       {
-        headers,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
       },
     )
   } catch (error) {
     console.error('Error in get-global-stats function:', error);
-    return createSecureErrorResponse(
-      'An unexpected error occurred',
-      500,
-      corsHeaders,
-      'get-global-stats'
-    );
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      },
+    )
   }
 })

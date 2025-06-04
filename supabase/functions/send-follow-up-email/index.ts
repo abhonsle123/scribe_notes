@@ -1,9 +1,7 @@
+
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 import { Resend } from "npm:resend@2.0.0";
-import { checkRateLimit } from '../_shared/rateLimiter.ts';
-import { createSecureErrorResponse, logSecurityEvent, validateRequestSize } from '../_shared/errorHandler.ts';
-import { addSecurityHeaders } from '../_shared/securityHeaders.ts';
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -12,8 +10,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
-
-const secureHeaders = addSecurityHeaders(corsHeaders);
 
 interface SendFollowUpEmailRequest {
   summaryId: string;
@@ -24,21 +20,16 @@ interface SendFollowUpEmailRequest {
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: secureHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate request size
-    if (!validateRequestSize(req, 1024 * 1024)) { // 1MB limit
-      return createSecureErrorResponse('Request too large', 413, corsHeaders, 'send-follow-up-email');
-    }
-
     console.log('send-follow-up-email function called');
 
     // Check if RESEND_API_KEY is available
     if (!Deno.env.get("RESEND_API_KEY")) {
       console.error('RESEND_API_KEY is not set');
-      return createSecureErrorResponse('Email service not configured', 500, corsHeaders, 'send-follow-up-email');
+      throw new Error('Email service not configured. Please contact support.');
     }
 
     // Initialize Supabase client
@@ -52,34 +43,6 @@ const handler = async (req: Request): Promise<Response> => {
       }
     )
 
-    // Verify authentication
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
-    if (authError || !user) {
-      logSecurityEvent({
-        type: 'auth_failure',
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        timestamp: new Date().toISOString(),
-        details: 'Invalid authentication for follow-up email'
-      });
-      return createSecureErrorResponse('Authentication required', 401, corsHeaders, 'send-follow-up-email');
-    }
-
-    // Check rate limiting
-    const rateLimitResult = checkRateLimit(req, user.id);
-    if (!rateLimitResult.allowed) {
-      logSecurityEvent({
-        type: 'rate_limit',
-        userId: user.id,
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        timestamp: new Date().toISOString()
-      });
-      return createSecureErrorResponse('Too many requests', 429, {
-        ...corsHeaders,
-        'X-RateLimit-Remaining': '0',
-        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
-      }, 'send-follow-up-email');
-    }
-
     const { summaryId, patientEmail, patientName }: SendFollowUpEmailRequest = await req.json();
 
     console.log('Request data:', { summaryId, patientEmail, patientName: patientName ? 'Present' : 'Missing' });
@@ -87,36 +50,14 @@ const handler = async (req: Request): Promise<Response> => {
     // Validate required fields
     if (!summaryId || !patientEmail || !patientName) {
       console.error('Missing required fields:', { summaryId: !!summaryId, patientEmail: !!patientEmail, patientName: !!patientName });
-      return createSecureErrorResponse('Missing required fields', 400, corsHeaders, 'send-follow-up-email');
+      throw new Error('Missing required fields');
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(patientEmail)) {
       console.error('Invalid email format:', patientEmail);
-      return createSecureErrorResponse('Invalid email format', 400, corsHeaders, 'send-follow-up-email');
-    }
-
-    // Verify summary ownership
-    const { data: summaryData, error: fetchError } = await supabaseClient
-      .from('summaries')
-      .select('user_id')
-      .eq('id', summaryId)
-      .single();
-
-    if (fetchError || !summaryData) {
-      return createSecureErrorResponse('Summary not found', 404, corsHeaders, 'send-follow-up-email');
-    }
-
-    if (summaryData.user_id !== user.id) {
-      logSecurityEvent({
-        type: 'unauthorized_access',
-        userId: user.id,
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        timestamp: new Date().toISOString(),
-        details: `Attempted to send follow-up email for summary ${summaryId}`
-      });
-      return createSecureErrorResponse('Unauthorized access', 403, corsHeaders, 'send-follow-up-email');
+      throw new Error('Invalid email format');
     }
 
     console.log('Sending follow-up email to:', patientEmail);
@@ -200,13 +141,13 @@ const handler = async (req: Request): Promise<Response> => {
     // Check if email sending failed
     if (emailResponse.error) {
       console.error("Resend API error:", emailResponse.error);
-      return createSecureErrorResponse('Email sending failed', 500, corsHeaders, 'send-follow-up-email');
+      throw new Error(`Email sending failed: ${emailResponse.error.message}`);
     }
 
     // Ensure we have a successful response
     if (!emailResponse.data || !emailResponse.data.id) {
       console.error("No email ID in response:", emailResponse);
-      return createSecureErrorResponse('Email sending failed', 500, corsHeaders, 'send-follow-up-email');
+      throw new Error('Email sending failed: No confirmation received');
     }
 
     console.log("Follow-up email sent successfully with ID:", emailResponse.data.id);
@@ -237,13 +178,26 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: {
         "Content-Type": "application/json",
-        ...secureHeaders,
-        'X-RateLimit-Remaining': rateLimitResult.remaining.toString()
+        ...corsHeaders,
       },
     });
   } catch (error: any) {
     console.error("Error in send-follow-up-email function:", error);
-    return createSecureErrorResponse(error, 500, corsHeaders, 'send-follow-up-email');
+    
+    // Return a proper error response
+    return new Response(
+      JSON.stringify({ 
+        error: error.message || 'An unexpected error occurred',
+        success: false 
+      }),
+      {
+        status: 500,
+        headers: { 
+          "Content-Type": "application/json", 
+          ...corsHeaders 
+        },
+      }
+    );
   }
 };
 

@@ -1,161 +1,83 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { checkRateLimit } from '../_shared/rateLimiter.ts';
-import { createSecureErrorResponse, logSecurityEvent, validateRequestSize } from '../_shared/errorHandler.ts';
-import { addSecurityHeaders } from '../_shared/securityHeaders.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const secureHeaders = addSecurityHeaders(corsHeaders);
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: secureHeaders });
+    return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    // Validate request size (100MB limit)
-    if (!validateRequestSize(req, 100 * 1024 * 1024)) {
-      return createSecureErrorResponse('Request too large', 413, corsHeaders, 'convert-to-patient-friendly');
-    }
-
-    // Verify authentication
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      logSecurityEvent({
-        type: 'auth_failure',
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: req.headers.get('user-agent') || 'unknown',
-        timestamp: new Date().toISOString(),
-        details: 'Missing authorization header'
-      });
-      return createSecureErrorResponse('Authentication required', 401, corsHeaders, 'convert-to-patient-friendly');
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.error('Missing Supabase configuration');
-      return createSecureErrorResponse('Service configuration error', 500, corsHeaders, 'convert-to-patient-friendly');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-
-    // Verify user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      logSecurityEvent({
-        type: 'auth_failure',
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        userAgent: req.headers.get('user-agent') || 'unknown',
-        timestamp: new Date().toISOString(),
-        details: 'Invalid authentication token'
-      });
-      return createSecureErrorResponse('Invalid authentication', 401, corsHeaders, 'convert-to-patient-friendly');
-    }
-
-    // Check rate limiting
-    const rateLimitResult = checkRateLimit(req, user.id);
-    if (!rateLimitResult.allowed) {
-      logSecurityEvent({
-        type: 'rate_limit',
-        userId: user.id,
-        ip: req.headers.get('x-forwarded-for') || 'unknown',
-        timestamp: new Date().toISOString()
-      });
-      return createSecureErrorResponse('Too many requests', 429, {
-        ...corsHeaders,
-        'X-RateLimit-Remaining': '0',
-        'X-RateLimit-Reset': rateLimitResult.resetTime.toString()
-      }, 'convert-to-patient-friendly');
-    }
-
     const { content, notes, fileData } = await req.json();
-
-    // Input validation
-    if (!content && !fileData) {
-      return createSecureErrorResponse('Content or file data is required', 400, corsHeaders, 'convert-to-patient-friendly');
-    }
-
-    // File size validation (enhanced)
-    if (fileData && fileData.data) {
-      const fileSizeBytes = (fileData.data.length * 3) / 4; // Approximate base64 to bytes conversion
-      const maxSizeBytes = 100 * 1024 * 1024; // 100MB
-      if (fileSizeBytes > maxSizeBytes) {
-        return createSecureErrorResponse('File size exceeds 100MB limit', 400, corsHeaders, 'convert-to-patient-friendly');
-      }
-
-      // Validate file type
-      const allowedMimeTypes = [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'text/plain'
-      ];
-      
-      if (fileData.mimeType && !allowedMimeTypes.includes(fileData.mimeType)) {
-        return createSecureErrorResponse('Unsupported file type', 400, corsHeaders, 'convert-to-patient-friendly');
-      }
-    }
 
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
-      console.error('Google AI API key not configured');
-      return createSecureErrorResponse('Service configuration error', 500, corsHeaders, 'convert-to-patient-friendly');
+      throw new Error('Google AI API key not configured');
     }
 
+    // Get user ID from the authorization header
+    const authHeader = req.headers.get('authorization');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
     let userTemplate = null;
     
-    try {
-      // Get user settings and template preferences
-      const { data: userSettings } = await supabase
-        .from('user_settings')
-        .select('summary_template, custom_template')
-        .single();
+    if (authHeader && supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      
+      try {
+        // Get user settings and template preferences
+        const { data: userSettings } = await supabase
+          .from('user_settings')
+          .select('summary_template, custom_template')
+          .single();
 
-      if (userSettings) {
-        console.log('User settings found for user:', user.id);
-        
-        if (userSettings.summary_template === 'custom' && userSettings.custom_template) {
-          userTemplate = userSettings.custom_template;
-          console.log('Using inline custom template');
-        } else if (userSettings.summary_template && userSettings.summary_template.startsWith('custom_')) {
-          const customTemplateId = userSettings.summary_template.replace('custom_', '');
-          const { data: customTemplateData } = await supabase
-            .from('user_custom_templates')
-            .select('template_content')
-            .eq('id', customTemplateId)
-            .single();
+        if (userSettings) {
+          console.log('User settings found:', userSettings);
           
-          if (customTemplateData) {
-            userTemplate = customTemplateData.template_content;
-            console.log('Using saved custom template:', customTemplateId);
-          }
-        } else if (userSettings.summary_template) {
-          const { data: presetTemplate } = await supabase
-            .from('template_presets')
-            .select('template_content')
-            .eq('name', userSettings.summary_template)
-            .eq('is_active', true)
-            .single();
-          
-          if (presetTemplate) {
-            userTemplate = presetTemplate.template_content;
-            console.log('Using preset template:', userSettings.summary_template);
+          if (userSettings.summary_template === 'custom' && userSettings.custom_template) {
+            // User selected "New Custom Template" and has custom content
+            userTemplate = userSettings.custom_template;
+            console.log('Using inline custom template');
+          } else if (userSettings.summary_template && userSettings.summary_template.startsWith('custom_')) {
+            // User selected one of their saved custom templates
+            const customTemplateId = userSettings.summary_template.replace('custom_', '');
+            const { data: customTemplateData } = await supabase
+              .from('user_custom_templates')
+              .select('template_content')
+              .eq('id', customTemplateId)
+              .single();
+            
+            if (customTemplateData) {
+              userTemplate = customTemplateData.template_content;
+              console.log('Using saved custom template:', customTemplateId);
+            }
+          } else if (userSettings.summary_template) {
+            // Get the preset template
+            const { data: presetTemplate } = await supabase
+              .from('template_presets')
+              .select('template_content')
+              .eq('name', userSettings.summary_template)
+              .eq('is_active', true)
+              .single();
+            
+            if (presetTemplate) {
+              userTemplate = presetTemplate.template_content;
+              console.log('Using preset template:', userSettings.summary_template);
+            }
           }
         }
+      } catch (error) {
+        console.log('Could not fetch user template preferences, using default:', error);
       }
-    } catch (error) {
-      console.log('Could not fetch user template preferences, using default:', error);
     }
 
     let fileUri = null;
@@ -164,6 +86,7 @@ serve(async (req) => {
 
     // Check if we have file data and if it's a supported type for direct upload
     if (fileData && fileData.data && fileData.mimeType) {
+      // Only these MIME types are supported by Gemini for direct file upload
       const supportedMimeTypes = [
         'application/pdf',
         'image/jpeg',
@@ -177,8 +100,10 @@ serve(async (req) => {
         console.log('Using direct file upload for supported format:', fileData.mimeType);
         
         try {
+          // Convert base64 to bytes
           const fileBytes = Uint8Array.from(atob(fileData.data), c => c.charCodeAt(0));
           
+          // Upload file to Gemini
           const uploadResponse = await fetch(`https://generativelanguage.googleapis.com/upload/v1beta/files?key=${apiKey}`, {
             method: 'POST',
             headers: {
@@ -199,6 +124,7 @@ serve(async (req) => {
           
           console.log('File uploaded successfully:', fileUri);
 
+          // Wait for file to be processed
           let processed = false;
           let attempts = 0;
           while (!processed && attempts < 30) {
@@ -229,6 +155,7 @@ serve(async (req) => {
       }
     }
 
+    // Use user's custom template or fall back to default
     const defaultSystemPrompt = `You are a medical communication specialist tasked with converting complex medical discharge summaries into patient-friendly language. Your goal is to make medical information accessible while preserving all critical details.
 
 IMPORTANT: Your response must have TWO distinct sections:
@@ -266,6 +193,7 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
 
     const finalPrompt = notes ? `${systemPrompt}\n\nAdditional context from medical team: ${notes}` : systemPrompt;
 
+    // Prepare the request body
     const requestBody: any = {
       contents: [{
         parts: []
@@ -278,10 +206,12 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
       }
     };
 
+    // Add the system prompt
     requestBody.contents[0].parts.push({
       text: finalPrompt
     });
 
+    // Add file reference if we have one, otherwise use text content
     if (shouldUseFileUpload && fileUri) {
       requestBody.contents[0].parts.push({
         fileData: {
@@ -290,6 +220,7 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
         }
       });
     } else {
+      // Fallback to text content
       const textContent = content || 'No text content provided';
       requestBody.contents[0].parts.push({
         text: `Please process this discharge summary:\n\n${textContent}`
@@ -309,13 +240,13 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Gemini API error:', errorData);
-      return createSecureErrorResponse('Failed to generate summary', 500, corsHeaders, 'convert-to-patient-friendly');
+      throw new Error('Failed to generate patient-friendly summary');
     }
 
     const data = await response.json();
     
     if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      return createSecureErrorResponse('Invalid response from AI service', 500, corsHeaders, 'convert-to-patient-friendly');
+      throw new Error('Invalid response from Gemini API');
     }
 
     const generatedSummary = data.candidates[0].content.parts[0].text;
@@ -331,23 +262,22 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
       }
     }
 
-    // Log successful operation
-    console.log(`Summary generated successfully for user ${user.id}`);
-
     return new Response(
       JSON.stringify({ summary: generatedSummary }),
       {
-        headers: { 
-          ...secureHeaders, 
-          'Content-Type': 'application/json',
-          'X-RateLimit-Remaining': rateLimitResult.remaining.toString()
-        },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
 
   } catch (error) {
     console.error('Error in convert-to-patient-friendly function:', error);
-    return createSecureErrorResponse(error, 500, corsHeaders, 'convert-to-patient-friendly');
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    );
   }
 });
 

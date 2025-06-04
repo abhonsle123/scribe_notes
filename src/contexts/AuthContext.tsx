@@ -33,37 +33,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.id);
-        
+      (event, session) => {
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
-          
-          // Create or update user profile when user signs in
-          if (event === 'SIGNED_IN' && session?.user) {
-            try {
-              const { error } = await supabase
-                .from('profiles')
-                .upsert({
-                  id: session.user.id,
-                  email: session.user.email,
-                  full_name: session.user.user_metadata?.full_name,
-                  first_name: session.user.user_metadata?.first_name,
-                  last_name: session.user.user_metadata?.last_name,
-                  updated_at: new Date().toISOString()
-                }, {
-                  onConflict: 'id'
-                });
-              
-              if (error) {
-                console.warn('Profile upsert error (non-critical):', error);
-              }
-            } catch (error) {
-              console.warn('Profile creation error (non-critical):', error);
-            }
-          }
-          
           setLoading(false);
         }
       }
@@ -72,11 +45,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Get initial session
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error getting initial session:', error);
-        }
-        
+        const { data: { session } } = await supabase.auth.getSession();
         if (mounted) {
           setSession(session);
           setUser(session?.user ?? null);
@@ -99,64 +68,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-    try {
-      const redirectUrl = `${window.location.origin}/`;
-      
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            full_name: `${firstName} ${lastName}`,
-          }
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          first_name: firstName,
+          last_name: lastName,
+          full_name: `${firstName} ${lastName}`,
         }
-      });
-      return { error };
-    } catch (error) {
-      console.error('Sign up error:', error);
-      return { error };
-    }
+      }
+    });
+    return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      return { error };
-    } catch (error) {
-      console.error('Sign in error:', error);
-      return { error };
-    }
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { error };
   };
 
   const signOut = async () => {
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-      }
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
+    await supabase.auth.signOut();
   };
 
   const resetPassword = async (email: string) => {
-    try {
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
-      });
-      return { error };
-    } catch (error) {
-      console.error('Reset password error:', error);
-      return { error };
-    }
+    const redirectUrl = `${window.location.origin}/reset-password`;
+    
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: redirectUrl,
+    });
+    return { error };
   };
 
   const value = {
