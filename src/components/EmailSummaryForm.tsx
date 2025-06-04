@@ -24,7 +24,6 @@ export const EmailSummaryForm = ({
   const [patientEmail, setPatientEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
-  const [sendFollowUp, setSendFollowUp] = useState(true);
   const { toast } = useToast();
 
   const handleSendEmail = async () => {
@@ -53,7 +52,6 @@ export const EmailSummaryForm = ({
     try {
       console.log('Sending email for summary:', summaryId);
 
-      // Send the main summary email
       const { data, error } = await supabase.functions.invoke('send-summary-email', {
         body: {
           summaryId,
@@ -70,42 +68,12 @@ export const EmailSummaryForm = ({
 
       console.log('Email sent successfully:', data);
 
-      // Send follow-up email if enabled
-      if (sendFollowUp) {
-        try {
-          console.log('Sending follow-up email for summary:', summaryId);
-          
-          const { error: followUpError } = await supabase.functions.invoke('send-follow-up-email', {
-            body: {
-              summaryId,
-              patientEmail,
-              patientName
-            }
-          });
-
-          if (followUpError) {
-            console.error('Error sending follow-up email:', followUpError);
-            // Don't fail the main email if follow-up fails
-            toast({
-              title: "Partial Success",
-              description: "Summary sent successfully, but follow-up email failed to send.",
-              variant: "destructive"
-            });
-          } else {
-            console.log('Follow-up email sent successfully');
-          }
-        } catch (followUpError) {
-          console.error('Follow-up email error:', followUpError);
-          // Don't fail the main process
-        }
-      }
-
       setEmailSent(true);
       onEmailSent();
 
       toast({
         title: "Email Sent Successfully",
-        description: `Medical summary has been sent to ${patientEmail}${sendFollowUp ? ' with follow-up feedback request' : ''}`,
+        description: `Medical summary has been sent to ${patientEmail}`,
       });
 
     } catch (error: any) {
@@ -128,10 +96,7 @@ export const EmailSummaryForm = ({
             <CheckCircle className="h-6 w-6 text-green-600" />
             <div>
               <h3 className="font-semibold text-green-800">Email Sent Successfully</h3>
-              <p className="text-green-700">
-                Summary has been delivered to {patientEmail}
-                {sendFollowUp && <span className="block text-sm">Follow-up feedback request will be sent automatically</span>}
-              </p>
+              <p className="text-green-700">Summary has been delivered to {patientEmail}</p>
             </div>
           </div>
         </CardContent>
@@ -161,19 +126,6 @@ export const EmailSummaryForm = ({
             onChange={(e) => setPatientEmail(e.target.value)}
             disabled={isSending}
           />
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <input
-            type="checkbox"
-            id="send-follow-up"
-            checked={sendFollowUp}
-            onChange={(e) => setSendFollowUp(e.target.checked)}
-            className="rounded border-gray-300"
-          />
-          <Label htmlFor="send-follow-up" className="text-sm">
-            Send follow-up feedback request (recommended)
-          </Label>
         </div>
         
         <div className="flex space-x-3">

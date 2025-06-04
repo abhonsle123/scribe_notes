@@ -9,59 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      feedback: {
-        Row: {
-          accuracy_rating: number | null
-          clarity_rating: number | null
-          created_at: string
-          id: string
-          open_feedback: string | null
-          overall_rating: number | null
-          recommendation_rating: number | null
-          session_id: string
-          summary_id: string | null
-          updated_at: string
-          usefulness_rating: number | null
-          user_id: string | null
-        }
-        Insert: {
-          accuracy_rating?: number | null
-          clarity_rating?: number | null
-          created_at?: string
-          id?: string
-          open_feedback?: string | null
-          overall_rating?: number | null
-          recommendation_rating?: number | null
-          session_id: string
-          summary_id?: string | null
-          updated_at?: string
-          usefulness_rating?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          accuracy_rating?: number | null
-          clarity_rating?: number | null
-          created_at?: string
-          id?: string
-          open_feedback?: string | null
-          overall_rating?: number | null
-          recommendation_rating?: number | null
-          session_id?: string
-          summary_id?: string | null
-          updated_at?: string
-          usefulness_rating?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "feedback_summary_id_fkey"
-            columns: ["summary_id"]
-            isOneToOne: false
-            referencedRelation: "summaries"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       profiles: {
         Row: {
           created_at: string | null
@@ -92,8 +39,6 @@ export type Database = {
       summaries: {
         Row: {
           created_at: string
-          follow_up_sent: boolean | null
-          follow_up_sent_at: string | null
           id: string
           original_filename: string
           patient_email: string | null
@@ -105,8 +50,6 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          follow_up_sent?: boolean | null
-          follow_up_sent_at?: string | null
           id?: string
           original_filename: string
           patient_email?: string | null
@@ -118,74 +61,12 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          follow_up_sent?: boolean | null
-          follow_up_sent_at?: string | null
           id?: string
           original_filename?: string
           patient_email?: string | null
           patient_name?: string
           sent_at?: string | null
           summary_content?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      template_presets: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          is_active: boolean | null
-          name: string
-          template_content: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          name: string
-          template_content: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_active?: boolean | null
-          name?: string
-          template_content?: string
-        }
-        Relationships: []
-      }
-      user_settings: {
-        Row: {
-          auto_delete_enabled: boolean | null
-          created_at: string
-          custom_template: string | null
-          data_retention_days: number | null
-          id: string
-          summary_template: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          auto_delete_enabled?: boolean | null
-          created_at?: string
-          custom_template?: string | null
-          data_retention_days?: number | null
-          id?: string
-          summary_template?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          auto_delete_enabled?: boolean | null
-          created_at?: string
-          custom_template?: string | null
-          data_retention_days?: number | null
-          id?: string
-          summary_template?: string | null
           updated_at?: string
           user_id?: string
         }

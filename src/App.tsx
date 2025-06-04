@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,8 +16,6 @@ import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import NewSummary from "./pages/NewSummary";
 import PastSummaries from "./pages/PastSummaries";
-import Settings from "./pages/Settings";
-import Feedback from "./pages/Feedback";
 
 const queryClient = new QueryClient();
 
@@ -51,7 +50,6 @@ const App = () => (
             <Route path="/faqs" element={<FAQs />} />
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/feedback" element={<Feedback />} />
             
             {/* Protected Dashboard Routes */}
             <Route path="/dashboard" element={
@@ -63,7 +61,7 @@ const App = () => (
               <Route path="new-summary" element={<NewSummary />} />
               <Route path="summaries" element={<PastSummaries />} />
               <Route path="team" element={<div>Team - Coming Soon</div>} />
-              <Route path="settings" element={<Settings />} />
+              <Route path="settings" element={<div>Settings - Coming Soon</div>} />
               <Route path="support" element={<div>Support - Coming Soon</div>} />
             </Route>
             

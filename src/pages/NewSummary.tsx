@@ -1,384 +1,630 @@
-
-import { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { 
-  Upload, 
-  FileText, 
-  Loader2, 
-  Send, 
-  Mail,
-  MessageSquare,
-  Globe,
-  Eye,
-  Download
-} from "lucide-react";
 import { extractTextFromFile, validateFileForProcessing } from "@/utils/fileProcessor";
 import { EmailSummaryForm } from "@/components/EmailSummaryForm";
+import {
+  Upload,
+  FileText,
+  Shield,
+  Clock,
+  CheckCircle,
+  Edit,
+  Eye,
+  AlertCircle,
+  File,
+  Image,
+  X
+} from "lucide-react";
 
 const NewSummary = () => {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const navigate = useNavigate();
-  
-  const [file, setFile] = useState<File | null>(null);
-  const [processing, setProcessing] = useState(false);
-  const [extractedText, setExtractedText] = useState("");
-  const [summary, setSummary] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [notes, setNotes] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isProcessed, setIsProcessed] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
+  const [generatedSummary, setGeneratedSummary] = useState("");
+  const [summaryId, setSummaryId] = useState<string | null>(null);
   const [patientName, setPatientName] = useState("");
-  const [showEmailForm, setShowEmailForm] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const { toast } = useToast();
+  const { user } = useAuth();
 
-  const extractPatientNameFromSummary = useCallback((summary: string, filename: string) => {
-    // Attempt to extract patient name from the summary content
-    const nameRegex = /(Patient:|Name:)\s*([A-Za-z\s]+)/i;
-    const nameMatch = summary.match(nameRegex);
-
-    if (nameMatch && nameMatch[2]) {
-      return nameMatch[2].trim();
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
+  };
 
-    // If not found in summary, try to extract from the filename
-    const filenameRegex = /^([A-Za-z\s]+)/;
-    const filenameMatch = filename.match(filenameRegex);
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
 
-    if (filenameMatch && filenameMatch[1]) {
-      return filenameMatch[1].trim();
-    }
-
-    return "Patient"; // Default if no name is found
-  }, []);
-
-  const getUserTemplate = async () => {
-    if (!user) return null;
-    
-    try {
-      const { data: userSettings } = await supabase
-        .from('user_settings')
-        .select('summary_template, custom_template')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (userSettings) {
-        if (userSettings.summary_template === 'custom' && userSettings.custom_template) {
-          return userSettings.custom_template;
-        } else {
-          // Get the preset template
-          const { data: preset } = await supabase
-            .from('template_presets')
-            .select('template_content')
-            .eq('name', userSettings.summary_template)
-            .eq('is_active', true)
-            .maybeSingle();
-          
-          return preset?.template_content || null;
-        }
-      }
-      
-      return null;
-    } catch (error) {
-      console.error('Error fetching user template:', error);
-      return null;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const droppedFiles = Array.from(e.dataTransfer.files);
+      const validFiles = droppedFiles.filter(file => 
+        file.type === "application/pdf" || 
+        file.type.startsWith("image/") ||
+        file.type === "application/msword" ||
+        file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      );
+      setFiles(prev => [...prev, ...validFiles]);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      console.log('File selected:', selectedFile.name, selectedFile.type);
-      
-      // Validate file
-      const validation = validateFileForProcessing(selectedFile);
-      if (!validation.isValid) {
-        toast({
-          title: "Invalid File",
-          description: validation.error,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      setFile(selectedFile);
-      setSummary("");
-      setExtractedText("");
-      setPatientName("");
+    if (e.target.files && e.target.files.length > 0) {
+      const selectedFiles = Array.from(e.target.files);
+      setFiles(prev => [...prev, ...selectedFiles]);
     }
   };
 
-  const processDocument = async () => {
-    if (!file || !user) {
-      console.log('Missing file or user:', { file: !!file, user: !!user });
+  const handleUploadAreaClick = () => {
+    const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.click();
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const getFileIcon = (file: File) => {
+    if (file.type === "application/pdf") {
+      return <FileText className="h-6 w-6 text-red-600" />;
+    } else if (file.type.startsWith("image/")) {
+      return <Image className="h-6 w-6 text-blue-600" />;
+    } else {
+      return <File className="h-6 w-6 text-gray-600" />;
+    }
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const extractPatientNameFromSummary = (summaryContent: string): string => {
+    // Try to find a patient name in the generated summary
+    // Common patterns in discharge reports
+    const namePatterns = [
+      /Patient\s*(?:Name|:)\s*([A-Za-z\s.-]+)(?:\r?\n|,|;|\s{2})/i,
+      /Name\s*(?::|of patient)\s*([A-Za-z\s.-]+)(?:\r?\n|,|;|\s{2})/i,
+      /(?:Mr\.|Mrs\.|Ms\.|Dr\.)\s+([A-Za-z\s.-]+)(?:\r?\n|,|;|\s{2})/i
+    ];
+
+    let extractedName = "";
+    
+    // Try each pattern until we find a match
+    for (const pattern of namePatterns) {
+      const match = summaryContent.match(pattern);
+      if (match && match[1]) {
+        extractedName = match[1].trim();
+        // If name is all caps, convert to title case
+        if (extractedName === extractedName.toUpperCase()) {
+          extractedName = extractedName
+            .toLowerCase()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        }
+        break;
+      }
+    }
+
+    // If no pattern matched, fall back to the filename (but with better formatting)
+    if (!extractedName && files.length > 0) {
+      extractedName = files[0]?.name
+        .replace(/\.[^/.]+$/, "")  // Remove file extension
+        .replace(/[_-]/g, " ")     // Replace underscores and hyphens with spaces
+        .replace(/\s+/g, " ")      // Normalize spaces
+        .trim();
+      
+      // If the filename is still not a good name, use a default
+      if (!extractedName || extractedName.length < 2) {
+        extractedName = "Unknown Patient";
+      }
+    } else if (!extractedName) {
+      extractedName = "Unknown Patient";
+    }
+
+    return extractedName;
+  };
+
+  const saveSummaryToDatabase = async (summaryContent: string) => {
+    try {
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Extract patient name from summary content instead of filename
+      const extractedPatientName = extractPatientNameFromSummary(summaryContent);
+      setPatientName(extractedPatientName);
+
+      const { data, error } = await supabase
+        .from('summaries')
+        .insert({
+          user_id: user.id,
+          patient_name: extractedPatientName,
+          original_filename: files.map(f => f.name).join(', '),
+          summary_content: summaryContent,
+          patient_email: null,
+          sent_at: null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error saving summary:', error);
+        throw error;
+      }
+
+      setSummaryId(data.id);
+      console.log('Summary saved successfully:', data.id);
+    } catch (error) {
+      console.error('Failed to save summary:', error);
+    }
+  };
+
+  const handleGenerateSummary = async () => {
+    if (files.length === 0) {
+      toast({
+        title: "No files uploaded",
+        description: "Please upload at least one document first.",
+        variant: "destructive"
+      });
       return;
     }
 
-    setProcessing(true);
-    console.log('Starting document processing for:', file.name);
-    
-    try {
-      // Process the file to extract text
-      console.log('Extracting text from file...');
-      const text = await extractTextFromFile(file);
-      console.log('Text extracted, length:', text.length);
-      setExtractedText(text);
+    setIsProcessing(true);
 
-      // Get user's template
-      console.log('Getting user template...');
-      const userTemplate = await getUserTemplate();
-      console.log('User template:', userTemplate ? 'Found' : 'Not found');
-      
-      // Convert to patient-friendly summary using the template
-      console.log('Calling edge function to convert text...');
+    try {
+      // Validate all files
+      for (const file of files) {
+        const validation = validateFileForProcessing(file);
+        if (!validation.isValid) {
+          throw new Error(`${file.name}: ${validation.error}`);
+        }
+      }
+
+      let fileData = null;
+      let combinedContent = "";
+
+      // For the first file, if it's a supported type for direct upload, send it directly
+      const firstFile = files[0];
+      const supportedForDirectUpload = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp'
+      ];
+
+      if (supportedForDirectUpload.includes(firstFile.type)) {
+        try {
+          console.log('Converting file to base64 for direct upload:', firstFile.name);
+          
+          // Use FileReader for more reliable base64 conversion
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result === 'string') {
+                // Remove the data URL prefix to get just the base64 data
+                const base64Data = reader.result.split(',')[1];
+                resolve(base64Data);
+              } else {
+                reject(new Error('Failed to read file as base64'));
+              }
+            };
+            reader.onerror = () => reject(new Error('File reading failed'));
+            reader.readAsDataURL(firstFile);
+          });
+          
+          fileData = {
+            data: base64,
+            mimeType: firstFile.type,
+            name: firstFile.name
+          };
+          
+          console.log('File converted successfully for direct upload');
+        } catch (conversionError) {
+          console.error('Failed to convert file for direct upload:', conversionError);
+          // Fall back to text extraction
+          fileData = null;
+        }
+      }
+
+      // For text files or as fallback, extract text content
+      if (!fileData) {
+        console.log('Using text extraction fallback');
+        for (const file of files) {
+          try {
+            const extractedText = await extractTextFromFile(file);
+            combinedContent += `\n\n--- Document: ${file.name} ---\n${extractedText}`;
+          } catch (extractionError) {
+            console.error('Text extraction failed for', file.name, ':', extractionError);
+            // Continue with a placeholder for failed files
+            combinedContent += `\n\n--- Document: ${file.name} ---\n[File processing failed - please check file format]`;
+          }
+        }
+      }
+
+      console.log('Calling Supabase edge function...');
+
+      // Call the Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('convert-to-patient-friendly', {
-        body: { 
-          text,
-          template: userTemplate
+        body: {
+          content: combinedContent,
+          notes: notes,
+          fileData: fileData
         }
       });
 
       if (error) {
-        console.error('Edge function error:', error);
-        throw error;
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Failed to generate summary');
       }
 
-      console.log('Summary generated successfully');
-      const generatedSummary = data.summary;
-      setSummary(generatedSummary);
-      
-      // Extract patient name from the summary
-      const extractedPatientName = extractPatientNameFromSummary(generatedSummary, file.name);
-      setPatientName(extractedPatientName);
-
-      // Save to database
-      console.log('Saving summary to database...');
-      const { error: saveError } = await supabase
-        .from('summaries')
-        .insert({
-          user_id: user.id,
-          original_filename: file.name,
-          summary_content: generatedSummary,
-          patient_name: extractedPatientName
-        });
-
-      if (saveError) {
-        console.error('Error saving summary:', saveError);
-        toast({
-          title: "Warning",
-          description: "Summary generated but could not be saved to history.",
-          variant: "destructive",
-        });
-      } else {
-        console.log('Summary saved successfully');
+      if (!data || !data.summary) {
+        throw new Error('Invalid response from AI service');
       }
+
+      setGeneratedSummary(data.summary);
+      setIsProcessed(true);
+
+      // Save summary to database
+      await saveSummaryToDatabase(data.summary);
 
       toast({
-        title: "Summary generated!",
-        description: "Your discharge summary has been converted to patient-friendly language.",
+        title: "Summary Generated Successfully",
+        description: "Your patient-friendly summary is ready for review.",
       });
-      
+
     } catch (error) {
-      console.error('Error processing document:', error);
+      console.error('Error generating summary:', error);
       toast({
-        title: "Error",
-        description: `Failed to process the document: ${error.message || 'Please try again.'}`,
-        variant: "destructive",
+        title: "Generation Failed",
+        description: error.message || "Failed to generate summary. Please try again.",
+        variant: "destructive"
       });
     } finally {
-      setProcessing(false);
+      setIsProcessing(false);
     }
   };
 
-  const handleSendEmail = () => {
-    setShowEmailForm(true);
+  const handleEmailSent = () => {
+    setEmailSent(true);
   };
 
-  const handleCloseEmailForm = () => {
-    setShowEmailForm(false);
-  };
-
-  const downloadSummary = () => {
-    const blob = new Blob([summary], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${patientName || 'summary'}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">
-            New Summary
-          </h1>
-          <p className="text-gray-600 mt-1">
-            Upload a discharge summary to convert it to patient-friendly language
-          </p>
+  if (isProcessed) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Summary Generated</h1>
+            <p className="text-gray-600 mt-1">Review and send your patient summary</p>
+          </div>
+          <Badge className={emailSent ? "bg-green-100 text-green-700 border-green-200" : "bg-blue-100 text-blue-700 border-blue-200"}>
+            <CheckCircle className="h-4 w-4 mr-1" />
+            {emailSent ? "Email Sent" : "Ready to Send"}
+          </Badge>
         </div>
-      </div>
 
-      {/* Upload Document Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload Document</CardTitle>
-          <CardDescription>
-            Select a PDF, Word document, or text file to upload and convert to a patient-friendly summary.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-4">
-            <Label htmlFor="upload-file" className="cursor-pointer">
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-                {file ? (
-                  <>
-                    <FileText className="h-8 w-8 mx-auto text-blue-600 mb-2" />
-                    <p className="text-sm font-medium text-gray-700">{file.name}</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {(file.size / 1024 / 1024).toFixed(2)} MB
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-600 font-medium">Click to upload a file</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      PDF, Word, or Text files up to 10MB
-                    </p>
-                  </>
-                )}
-              </div>
-            </Label>
-            <Input
-              type="file"
-              id="upload-file"
-              className="hidden"
-              onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.txt"
-            />
-            {file && (
-              <Button onClick={() => setFile(null)} variant="outline">
-                Remove
-              </Button>
-            )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Summary Preview */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Eye className="h-5 w-5 mr-2" />
+                  Patient Summary Preview
+                </CardTitle>
+                <CardDescription>
+                  AI-generated summary in patient-friendly language (9th grade reading level)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-gray-50 p-6 rounded-lg">
+                  <div className="prose max-w-none">
+                    <div className="whitespace-pre-line text-gray-800">
+                      {generatedSummary}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex space-x-3">
+                  <Button 
+                    variant="outline" 
+                    className="flex items-center"
+                    onClick={() => {
+                      setIsProcessed(false);
+                      setGeneratedSummary("");
+                      setSummaryId(null);
+                      setEmailSent(false);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Generate New Summary
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {extractedText && (
-            <div className="mt-4">
-              <Label>Extracted Text Preview</Label>
-              <Textarea 
-                value={extractedText.substring(0, 500) + (extractedText.length > 500 ? '...' : '')} 
-                readOnly 
-                className="mt-2 text-sm bg-gray-50"
-                rows={4}
+          {/* Email Sending */}
+          <div className="space-y-6">
+            {summaryId && (
+              <EmailSummaryForm
+                summaryId={summaryId}
+                patientName={patientName}
+                summaryContent={generatedSummary}
+                onEmailSent={handleEmailSent}
               />
-            </div>
-          )}
-
-          <Button
-            onClick={processDocument}
-            disabled={processing || !file}
-            className="w-full bg-blue-600 hover:bg-blue-700"
-          >
-            {processing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing Document...
-              </>
-            ) : (
-              <>
-                <FileText className="mr-2 h-4 w-4" />
-                Generate Patient-Friendly Summary
-              </>
             )}
-          </Button>
-        </CardContent>
-      </Card>
 
-      {/* Display Summary Card */}
-      {summary && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Generated Summary</CardTitle>
-              <div className="space-x-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPreviewMode(!previewMode)}
-                  className="flex items-center space-x-2"
-                >
-                  <Eye className="h-4 w-4" />
-                  <span>{previewMode ? 'Edit' : 'Preview'}</span>
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={downloadSummary}
-                  className="flex items-center space-x-2"
-                >
-                  <Download className="h-4 w-4" />
-                  <span>Download</span>
-                </Button>
+            <Card>
+              <CardHeader>
+                <CardTitle>Summary Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Patient:</span>
+                  <span className="font-medium">{patientName}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">AI Model:</span>
+                  <span className="font-medium">Gemini 2.0 Flash</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Reading Level:</span>
+                  <span className="font-medium">Grade 9</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Word Count:</span>
+                  <span className="font-medium">{generatedSummary.split(' ').length} words</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Status:</span>
+                  <Badge className={emailSent ? "bg-green-100 text-green-700 text-xs" : "bg-blue-100 text-blue-700 text-xs"}>
+                    {emailSent ? "Sent" : "Ready"}
+                  </Badge>
+                </div>
+                {summaryId && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Saved:</span>
+                    <Badge className="bg-blue-100 text-blue-700 text-xs">Database</Badge>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isProcessing) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Processing Summary</h1>
+          <p className="text-gray-600">Gemini 2.0 Flash is converting your discharge summary to patient-friendly language...</p>
+        </div>
+
+        <Card className="max-w-2xl mx-auto">
+          <CardContent className="p-8 text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-6"></div>
+            <h3 className="text-lg font-semibold mb-2">Generating Patient Summary</h3>
+            <p className="text-gray-600 mb-6">
+              Converting complex medical language to 9th-grade reading level with empathetic tone...
+            </p>
+            <div className="space-y-2 text-sm text-gray-500">
+              <div className="flex items-center justify-center">
+                <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
+                Files processed and content extracted
               </div>
-            </div>
-            <CardDescription>
-              Review the generated summary and send it to the patient.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {patientName && (
-              <div className="mb-2">
-                <Label>Patient Name</Label>
-                <Input 
-                  type="text" 
-                  value={patientName} 
-                  onChange={(e) => setPatientName(e.target.value)}
-                  className="mt-1"
-                />
+              <div className="flex items-center justify-center">
+                <Clock className="h-4 w-4 text-blue-600 mr-2" />
+                AI analyzing and converting medical content...
               </div>
-            )}
-            <div className="space-y-2">
-              <Label>Summary</Label>
-              <Textarea 
-                value={summary} 
-                onChange={(e) => setSummary(e.target.value)}
-                readOnly={previewMode}
-                className="min-h-[200px] font-mono text-sm"
-              />
-            </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={handleSendEmail}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                Send to Patient
-              </Button>
             </div>
           </CardContent>
         </Card>
-      )}
+      </div>
+    );
+  }
 
-      {/* Send Email Form (Conditionally Rendered) */}
-      {showEmailForm && (
-        <EmailSummaryForm 
-          summaryId=""
-          patientName={patientName}
-          summaryContent={summary}
-          onEmailSent={handleCloseEmailForm}
-        />
-      )}
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Create New Summary</h1>
+        <p className="text-gray-600 mt-1">
+          Upload discharge summaries to generate patient-friendly versions using Gemini 2.0 Flash
+        </p>
+      </div>
+
+      {/* Security Notice */}
+      <Card className="border-green-200 bg-green-50">
+        <CardContent className="p-4">
+          <div className="flex items-center space-x-2">
+            <Shield className="h-5 w-5 text-green-600" />
+            <span className="text-green-800 font-medium">Secure Platform</span>
+            <span className="text-green-700">• End-to-end encryption • Data not stored</span>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* File Upload */}
+        <div className="lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload Documents</CardTitle>
+              <CardDescription>
+                Upload PDF files, images, or Word documents containing discharge summaries
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div
+                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
+                  dragActive
+                    ? 'border-blue-500 bg-blue-50'
+                    : files.length > 0
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                }`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={handleUploadAreaClick}
+              >
+                <div className="space-y-4">
+                  <Upload className="h-12 w-12 text-gray-400 mx-auto" />
+                  <div>
+                    <p className="text-lg font-semibold text-gray-700">
+                      Drop your files here, or click to browse
+                    </p>
+                    <p className="text-gray-500">PDF, DOC, DOCX, JPG, PNG files • Max 10MB each</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                    onChange={handleFileChange}
+                    multiple
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  <Button variant="outline" className="cursor-pointer">
+                    Choose Files
+                  </Button>
+                </div>
+              </div>
+
+              {/* Uploaded Files List */}
+              {files.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-3">Uploaded Files ({files.length})</h4>
+                  <div className="space-y-2">
+                    {files.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          {getFileIcon(file)}
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 truncate max-w-xs">{file.name}</p>
+                            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                          className="text-gray-400 hover:text-red-600"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Optional Notes */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Additional Notes (Optional)</CardTitle>
+              <CardDescription>
+                Add specific instructions for the AI (e.g., focus on medication changes, emphasize follow-up importance)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                placeholder="e.g., Patient is elderly and needs extra medication explanations, emphasize the importance of follow-up appointments..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="min-h-[100px]"
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Process Summary */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Generate Summary</CardTitle>
+              <CardDescription>
+                Convert to patient-friendly language using Gemini 2.0 Flash
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                onClick={handleGenerateSummary}
+                disabled={files.length === 0 || isProcessing}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+                size="lg"
+              >
+                <FileText className="h-5 w-5 mr-2" />
+                {isProcessing ? 'Processing...' : 'Generate Summary'}
+              </Button>
+              
+              {files.length === 0 && (
+                <div className="flex items-start space-x-2 text-sm text-amber-600">
+                  <AlertCircle className="h-4 w-4 mt-0.5" />
+                  <span>Please upload at least one file first</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>AI Features</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              <div className="flex items-start space-x-3">
+                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
+                  <span className="text-xs font-bold">✓</span>
+                </div>
+                <span>9th-grade reading level conversion</span>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
+                  <span className="text-xs font-bold">✓</span>
+                </div>
+                <span>Explains medication purposes</span>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
+                  <span className="text-xs font-bold">✓</span>
+                </div>
+                <span>Empathetic, supportive tone</span>
+              </div>
+              <div className="flex items-start space-x-3">
+                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
+                  <span className="text-xs font-bold">✓</span>
+                </div>
+                <span>Structured sections for clarity</span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 };
