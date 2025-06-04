@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,14 @@ interface Summary {
   patient_name: string;
   sent_at: string | null;
   created_at: string;
+  patient_email: string | null;
 }
 
 interface DashboardStats {
   summariesThisMonth: number;
+  summariesLastMonth: number;
   patientSatisfaction: string;
+  averageRating: number | null;
   chatboxInteraction: string;
   unsentDrafts: number;
 }
@@ -36,9 +40,12 @@ interface DashboardStats {
 const Dashboard = () => {
   const { user } = useAuth();
   const [summaries, setSummaries] = useState<Summary[]>([]);
+  const [recentSummaries, setRecentSummaries] = useState<Summary[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     summariesThisMonth: 0,
+    summariesLastMonth: 0,
     patientSatisfaction: "N/A",
+    averageRating: null,
     chatboxInteraction: "15%", // Mock data as requested
     unsentDrafts: 0
   });
@@ -57,23 +64,34 @@ const Dashboard = () => {
       // Fetch all summaries for the user
       const { data: allSummaries, error: summariesError } = await supabase
         .from('summaries')
-        .select('id, patient_name, sent_at, created_at')
+        .select('id, patient_name, sent_at, created_at, patient_email')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (summariesError) throw summariesError;
 
       setSummaries(allSummaries || []);
+      
+      // Get the last 3 summaries for recent activity
+      setRecentSummaries((allSummaries || []).slice(0, 3));
 
       // Calculate stats
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
       const threeDaysAgo = new Date(now.getTime() - (3 * 24 * 60 * 60 * 1000));
 
       // Summaries this month
       const summariesThisMonth = allSummaries?.filter(summary => 
         new Date(summary.created_at) >= startOfMonth
       ).length || 0;
+
+      // Summaries last month
+      const summariesLastMonth = allSummaries?.filter(summary => {
+        const createdDate = new Date(summary.created_at);
+        return createdDate >= startOfLastMonth && createdDate <= endOfLastMonth;
+      }).length || 0;
 
       // Unsent drafts in last 3 days
       const unsentDrafts = allSummaries?.filter(summary => 
@@ -88,14 +106,17 @@ const Dashboard = () => {
         .not('overall_rating', 'is', null);
 
       let patientSatisfaction = "N/A";
+      let averageRating: number | null = null;
       if (!feedbackError && feedbackData && feedbackData.length > 0) {
-        const avgRating = feedbackData.reduce((sum, feedback) => sum + feedback.overall_rating, 0) / feedbackData.length;
-        patientSatisfaction = `${avgRating.toFixed(1)}/5`;
+        averageRating = feedbackData.reduce((sum, feedback) => sum + feedback.overall_rating, 0) / feedbackData.length;
+        patientSatisfaction = `${averageRating.toFixed(1)}/5`;
       }
 
       setStats({
         summariesThisMonth,
+        summariesLastMonth,
         patientSatisfaction,
+        averageRating,
         chatboxInteraction: "15%", // Mock data as requested
         unsentDrafts
       });
@@ -107,38 +128,11 @@ const Dashboard = () => {
     }
   };
 
-  const recentActivity = [
-    {
-      id: 1,
-      patient: "Patient #1234",
-      type: "Summary Generated",
-      status: "delivered",
-      time: "2 hours ago",
-      method: "Email"
-    },
-    {
-      id: 2,
-      patient: "Patient #1235",
-      type: "Summary Generated", 
-      status: "pending",
-      time: "4 hours ago",
-      method: "SMS"
-    },
-    {
-      id: 3,
-      patient: "Patient #1236",
-      type: "Summary Generated",
-      status: "delivered", 
-      time: "6 hours ago",
-      method: "Patient Portal"
-    }
-  ];
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case "delivered": return "bg-green-100 text-green-700 border-green-200";
       case "pending": return "bg-yellow-100 text-yellow-700 border-yellow-200";
-      case "failed": return "bg-red-100 text-red-700 border-red-200";
+      case "draft": return "bg-gray-100 text-gray-700 border-gray-200";
       default: return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
@@ -152,19 +146,54 @@ const Dashboard = () => {
     }
   };
 
+  const getDeliveryMethod = (summary: Summary) => {
+    if (summary.patient_email) return "Email";
+    return "Manual"; // Default if no email specified
+  };
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) return "Less than 1 hour ago";
+    if (diffInHours === 1) return "1 hour ago";
+    if (diffInHours < 24) return `${diffInHours} hours ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return "1 day ago";
+    return `${diffInDays} days ago`;
+  };
+
+  const calculateMonthlyChange = () => {
+    if (stats.summariesLastMonth === 0) {
+      return stats.summariesThisMonth > 0 ? "+100%" : "0%";
+    }
+    const change = ((stats.summariesThisMonth - stats.summariesLastMonth) / stats.summariesLastMonth) * 100;
+    return change >= 0 ? `+${change.toFixed(0)}%` : `${change.toFixed(0)}%`;
+  };
+
+  const getSatisfactionTrend = () => {
+    if (!stats.averageRating) return "No data";
+    if (stats.averageRating >= 4.5) return "+Excellent";
+    if (stats.averageRating >= 4.0) return "+Good";
+    if (stats.averageRating >= 3.0) return "Fair";
+    return "Needs improvement";
+  };
+
   const analytics = [
     {
       title: "Summaries This Month",
       value: loading ? "..." : stats.summariesThisMonth.toString(),
       icon: TrendingUp,
-      trend: "+23%",
+      trend: calculateMonthlyChange(),
       description: "vs. last month"
     },
     {
       title: "Patient Satisfaction",
       value: loading ? "..." : stats.patientSatisfaction,
       icon: Star,
-      trend: "+0.2",
+      trend: getSatisfactionTrend(),
       description: "Based on feedback"
     },
     {
@@ -239,6 +268,8 @@ const Dashboard = () => {
                 <span className={`font-medium ${
                   metric.title === "Unsent Drafts (3 days)" && stats.unsentDrafts > 0 
                     ? "text-orange-600" 
+                    : metric.title === "Patient Satisfaction" && metric.trend === "No data"
+                    ? "text-gray-500"
                     : "text-green-600"
                 }`}>
                   {metric.trend}
@@ -263,25 +294,33 @@ const Dashboard = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-white rounded-lg shadow-sm">
-                    {getMethodIcon(activity.method)}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">{activity.patient}</p>
-                    <p className="text-sm text-gray-600">{activity.type}</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <Badge className={getStatusColor(activity.status)}>
-                    {activity.status}
-                  </Badge>
-                  <span className="text-sm text-gray-500">{activity.time}</span>
-                </div>
+            {loading ? (
+              <div className="text-center py-8 text-gray-500">Loading recent activity...</div>
+            ) : recentSummaries.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                No summaries created yet. <Link to="/dashboard/new-summary" className="text-blue-600 hover:underline">Create your first summary</Link>
               </div>
-            ))}
+            ) : (
+              recentSummaries.map((summary) => (
+                <div key={summary.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-4">
+                    <div className="p-2 bg-white rounded-lg shadow-sm">
+                      {getMethodIcon(getDeliveryMethod(summary))}
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{summary.patient_name}</p>
+                      <p className="text-sm text-gray-600">Summary Generated</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <Badge className={getStatusColor(summary.sent_at ? "delivered" : "draft")}>
+                      {summary.sent_at ? "delivered" : "draft"}
+                    </Badge>
+                    <span className="text-sm text-gray-500">{getTimeAgo(summary.created_at)}</span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
           <div className="mt-6 text-center">
             <Link to="/dashboard/summaries">
