@@ -98,14 +98,61 @@ const NewSummary = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const extractPatientNameFromSummary = (summaryContent: string): string => {
+    // Try to find a patient name in the generated summary
+    // Common patterns in discharge reports
+    const namePatterns = [
+      /Patient\s*(?:Name|:)\s*([A-Za-z\s.-]+)(?:\r?\n|,|;|\s{2})/i,
+      /Name\s*(?::|of patient)\s*([A-Za-z\s.-]+)(?:\r?\n|,|;|\s{2})/i,
+      /(?:Mr\.|Mrs\.|Ms\.|Dr\.)\s+([A-Za-z\s.-]+)(?:\r?\n|,|;|\s{2})/i
+    ];
+
+    let extractedName = "";
+    
+    // Try each pattern until we find a match
+    for (const pattern of namePatterns) {
+      const match = summaryContent.match(pattern);
+      if (match && match[1]) {
+        extractedName = match[1].trim();
+        // If name is all caps, convert to title case
+        if (extractedName === extractedName.toUpperCase()) {
+          extractedName = extractedName
+            .toLowerCase()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        }
+        break;
+      }
+    }
+
+    // If no pattern matched, fall back to the filename (but with better formatting)
+    if (!extractedName && files.length > 0) {
+      extractedName = files[0]?.name
+        .replace(/\.[^/.]+$/, "")  // Remove file extension
+        .replace(/[_-]/g, " ")     // Replace underscores and hyphens with spaces
+        .replace(/\s+/g, " ")      // Normalize spaces
+        .trim();
+      
+      // If the filename is still not a good name, use a default
+      if (!extractedName || extractedName.length < 2) {
+        extractedName = "Unknown Patient";
+      }
+    } else if (!extractedName) {
+      extractedName = "Unknown Patient";
+    }
+
+    return extractedName;
+  };
+
   const saveSummaryToDatabase = async (summaryContent: string) => {
     try {
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // Extract patient name from the first file name or use a default
-      const extractedPatientName = files[0]?.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || "Unknown Patient";
+      // Extract patient name from summary content instead of filename
+      const extractedPatientName = extractPatientNameFromSummary(summaryContent);
       setPatientName(extractedPatientName);
 
       const { data, error } = await supabase
