@@ -39,6 +39,7 @@ interface DashboardStats {
 
 interface UserProfile {
   first_name: string | null;
+  last_name: string | null;
   full_name: string | null;
 }
 
@@ -70,7 +71,7 @@ const Dashboard = () => {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('first_name, full_name')
+        .select('first_name, last_name, full_name')
         .eq('id', user.id)
         .single();
 
