@@ -164,6 +164,54 @@ export type Database = {
         }
         Relationships: []
       }
+      transcriptions: {
+        Row: {
+          audio_duration: number | null
+          clinical_notes: string | null
+          clinical_notes_sent_at: string | null
+          created_at: string
+          id: string
+          original_filename: string | null
+          patient_email: string | null
+          patient_name: string
+          patient_summary: string | null
+          patient_summary_sent_at: string | null
+          transcription_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audio_duration?: number | null
+          clinical_notes?: string | null
+          clinical_notes_sent_at?: string | null
+          created_at?: string
+          id?: string
+          original_filename?: string | null
+          patient_email?: string | null
+          patient_name: string
+          patient_summary?: string | null
+          patient_summary_sent_at?: string | null
+          transcription_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audio_duration?: number | null
+          clinical_notes?: string | null
+          clinical_notes_sent_at?: string | null
+          created_at?: string
+          id?: string
+          original_filename?: string | null
+          patient_email?: string | null
+          patient_name?: string
+          patient_summary?: string | null
+          patient_summary_sent_at?: string | null
+          transcription_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_custom_templates: {
         Row: {
           created_at: string
@@ -230,6 +278,10 @@ export type Database = {
     }
     Functions: {
       delete_old_summaries: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      delete_old_transcriptions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

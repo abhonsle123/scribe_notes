@@ -21,7 +21,9 @@ import Help from "./pages/Help";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import NewSummary from "./pages/NewSummary";
+import NewTranscription from "./pages/NewTranscription";
 import PastSummaries from "./pages/PastSummaries";
+import PastTranscriptions from "./pages/PastTranscriptions";
 import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
@@ -74,7 +76,9 @@ const App = () => (
             }>
               <Route index element={<Dashboard />} />
               <Route path="new-summary" element={<NewSummary />} />
+              <Route path="new-transcription" element={<NewTranscription />} />
               <Route path="summaries" element={<PastSummaries />} />
+              <Route path="transcriptions" element={<PastTranscriptions />} />
               <Route path="settings" element={<Settings />} />
               <Route path="support" element={<div>Support - Coming Soon</div>} />
             </Route>

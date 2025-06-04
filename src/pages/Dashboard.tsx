@@ -15,7 +15,11 @@ import {
   MessageSquare,
   Globe,
   DraftingCompass,
-  Upload
+  Upload,
+  Mic,
+  FileAudio,
+  Stethoscope,
+  Users
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,8 +32,19 @@ interface Summary {
   patient_email: string | null;
 }
 
+interface Transcription {
+  id: string;
+  patient_name: string;
+  transcription_text: string | null;
+  clinical_notes: string | null;
+  patient_summary: string | null;
+  created_at: string;
+  audio_duration: number | null;
+}
+
 interface DashboardStats {
   summariesThisMonth: number;
+  transcriptionsThisMonth: number;
   summariesLastMonth: number;
   patientSatisfaction: string;
   averageRating: number | null;
@@ -46,10 +61,12 @@ interface UserProfile {
 const Dashboard = () => {
   const { user } = useAuth();
   const [summaries, setSummaries] = useState<Summary[]>([]);
-  const [recentSummaries, setRecentSummaries] = useState<Summary[]>([]);
+  const [transcriptions, setTranscriptions] = useState<Transcription[]>([]);
+  const [recentActivity, setRecentActivity] = useState<Array<Summary | Transcription>>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     summariesThisMonth: 0,
+    transcriptionsThisMonth: 0,
     summariesLastMonth: 0,
     patientSatisfaction: "N/A",
     averageRating: null,
@@ -61,7 +78,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user?.id) {
       fetchUserProfile();
-      fetchSummariesAndStats();
+      fetchDashboardData();
     }
   }, [user?.id]);
 
@@ -96,12 +113,12 @@ const Dashboard = () => {
     return user?.email?.split('@')[0] || 'Doctor';
   };
 
-  const fetchSummariesAndStats = async () => {
+  const fetchDashboardData = async () => {
     if (!user?.id) return;
 
     try {
-      // Fetch all summaries for the user
-      const { data: allSummaries, error: summariesError } = await supabase
+      // Fetch summaries
+      const { data: summariesData, error: summariesError } = await supabase
         .from('summaries')
         .select('id, patient_name, sent_at, created_at, patient_email')
         .eq('user_id', user.id)
@@ -109,10 +126,26 @@ const Dashboard = () => {
 
       if (summariesError) throw summariesError;
 
-      setSummaries(allSummaries || []);
-      
-      // Get the last 3 summaries for recent activity
-      setRecentSummaries((allSummaries || []).slice(0, 3));
+      // Fetch transcriptions
+      const { data: transcriptionsData, error: transcriptionsError } = await supabase
+        .from('transcriptions')
+        .select('id, patient_name, transcription_text, clinical_notes, patient_summary, created_at, audio_duration')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (transcriptionsError) throw transcriptionsError;
+
+      setSummaries(summariesData || []);
+      setTranscriptions(transcriptionsData || []);
+
+      // Combine and sort recent activity
+      const allActivity = [
+        ...(summariesData || []).map(s => ({ ...s, type: 'summary' as const })),
+        ...(transcriptionsData || []).map(t => ({ ...t, type: 'transcription' as const }))
+      ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+       .slice(0, 3);
+
+      setRecentActivity(allActivity);
 
       // Calculate stats
       const now = new Date();
@@ -122,18 +155,23 @@ const Dashboard = () => {
       const threeDaysAgo = new Date(now.getTime() - (3 * 24 * 60 * 60 * 1000));
 
       // Summaries this month
-      const summariesThisMonth = allSummaries?.filter(summary => 
+      const summariesThisMonth = summariesData?.filter(summary => 
         new Date(summary.created_at) >= startOfMonth
       ).length || 0;
 
+      // Transcriptions this month
+      const transcriptionsThisMonth = transcriptionsData?.filter(transcription => 
+        new Date(transcription.created_at) >= startOfMonth
+      ).length || 0;
+
       // Summaries last month
-      const summariesLastMonth = allSummaries?.filter(summary => {
+      const summariesLastMonth = summariesData?.filter(summary => {
         const createdDate = new Date(summary.created_at);
         return createdDate >= startOfLastMonth && createdDate <= endOfLastMonth;
       }).length || 0;
 
       // Unsent drafts in last 3 days
-      const unsentDrafts = allSummaries?.filter(summary => 
+      const unsentDrafts = summariesData?.filter(summary => 
         !summary.sent_at && new Date(summary.created_at) >= threeDaysAgo
       ).length || 0;
 
@@ -153,6 +191,7 @@ const Dashboard = () => {
 
       setStats({
         summariesThisMonth,
+        transcriptionsThisMonth,
         summariesLastMonth,
         patientSatisfaction,
         averageRating,
@@ -172,6 +211,7 @@ const Dashboard = () => {
       case "delivered": return "bg-green-100 text-green-700 border-green-200";
       case "pending": return "bg-yellow-100 text-yellow-700 border-yellow-200";
       case "draft": return "bg-gray-100 text-gray-700 border-gray-200";
+      case "processed": return "bg-blue-100 text-blue-700 border-blue-200";
       default: return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
@@ -181,13 +221,15 @@ const Dashboard = () => {
       case "Email": return <Mail className="h-4 w-4" />;
       case "SMS": return <MessageSquare className="h-4 w-4" />;
       case "Patient Portal": return <Globe className="h-4 w-4" />;
+      case "Audio": return <FileAudio className="h-4 w-4" />;
       default: return <Send className="h-4 w-4" />;
     }
   };
 
-  const getDeliveryMethod = (summary: Summary) => {
-    if (summary.patient_email) return "Email";
-    return "Manual"; // Default if no email specified
+  const getDeliveryMethod = (item: any) => {
+    if (item.type === 'transcription') return "Audio";
+    if (item.patient_email) return "Email";
+    return "Manual";
   };
 
   const getTimeAgo = (dateString: string) => {
@@ -205,10 +247,11 @@ const Dashboard = () => {
   };
 
   const calculateMonthlyChange = () => {
+    const totalThisMonth = stats.summariesThisMonth + stats.transcriptionsThisMonth;
     if (stats.summariesLastMonth === 0) {
-      return stats.summariesThisMonth > 0 ? "+100%" : "0%";
+      return totalThisMonth > 0 ? "+100%" : "0%";
     }
-    const change = ((stats.summariesThisMonth - stats.summariesLastMonth) / stats.summariesLastMonth) * 100;
+    const change = ((totalThisMonth - stats.summariesLastMonth) / stats.summariesLastMonth) * 100;
     return change >= 0 ? `+${change.toFixed(0)}%` : `${change.toFixed(0)}%`;
   };
 
@@ -222,11 +265,11 @@ const Dashboard = () => {
 
   const analytics = [
     {
-      title: "Summaries This Month",
-      value: loading ? "..." : stats.summariesThisMonth.toString(),
+      title: "Total Activities This Month",
+      value: loading ? "..." : (stats.summariesThisMonth + stats.transcriptionsThisMonth).toString(),
       icon: TrendingUp,
       trend: calculateMonthlyChange(),
-      description: "vs. last month"
+      description: "Summaries + Transcriptions"
     },
     {
       title: "Patient Satisfaction",
@@ -262,41 +305,73 @@ const Dashboard = () => {
                 Welcome back, {getDisplayName()}
               </h1>
               <p className="text-xl text-gray-600">
-                Ready to create clear, patient-friendly summaries?
+                Ready to transform medical communications?
               </p>
             </div>
-            <Link to="/dashboard/new-summary">
-              <Button size="lg" className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-4 rounded-full transition-all duration-300 hover:scale-105">
-                <Plus className="h-5 w-5 mr-2" />
-                New Summary
-              </Button>
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link to="/dashboard/new-transcription">
+                <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-4 rounded-full transition-all duration-300 hover:scale-105">
+                  <Mic className="h-5 w-5 mr-2" />
+                  New Audio
+                </Button>
+              </Link>
+              <Link to="/dashboard/new-summary">
+                <Button size="lg" className="bg-teal-500 hover:bg-teal-600 text-white px-6 py-4 rounded-full transition-all duration-300 hover:scale-105">
+                  <Plus className="h-5 w-5 mr-2" />
+                  New Summary
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
         <div className="absolute -top-8 -right-8 w-32 h-32 bg-gradient-to-br from-teal-200 to-blue-200 rounded-full opacity-20"></div>
         <div className="absolute -bottom-12 -left-12 w-48 h-48 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full opacity-15"></div>
       </div>
 
-      {/* Quick Action Card */}
-      <Card className="glass-card border-0 hover-lift">
-        <CardHeader className="text-center pb-4">
-          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-teal-400 to-blue-500 rounded-full flex items-center justify-center mb-4">
-            <FileText className="h-10 w-10 text-white" />
-          </div>
-          <CardTitle className="text-2xl text-gray-900">Transform Medical Reports</CardTitle>
-          <CardDescription className="text-lg text-gray-600">
-            Upload a discharge summary and we'll convert it to patient-friendly language in minutes
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="text-center">
-          <Link to="/dashboard/new-summary">
-            <Button size="lg" className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white px-8 py-4 rounded-full text-lg transition-all duration-300 hover:scale-105">
-              <Upload className="h-5 w-5 mr-2" />
-              Upload Document
-            </Button>
-          </Link>
-        </CardContent>
-      </Card>
+      {/* Quick Action Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Document Summary Card */}
+        <Card className="glass-card border-0 hover-lift">
+          <CardHeader className="text-center pb-4">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-teal-400 to-blue-500 rounded-full flex items-center justify-center mb-4">
+              <FileText className="h-10 w-10 text-white" />
+            </div>
+            <CardTitle className="text-xl text-gray-900">Transform Medical Reports</CardTitle>
+            <CardDescription className="text-base text-gray-600">
+              Upload discharge summaries and convert them to patient-friendly language
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Link to="/dashboard/new-summary">
+              <Button size="lg" className="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white px-6 py-3 rounded-full transition-all duration-300 hover:scale-105">
+                <Upload className="h-5 w-5 mr-2" />
+                Upload Document
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        {/* Audio Transcription Card */}
+        <Card className="glass-card border-0 hover-lift">
+          <CardHeader className="text-center pb-4">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full flex items-center justify-center mb-4">
+              <Stethoscope className="h-10 w-10 text-white" />
+            </div>
+            <CardTitle className="text-xl text-gray-900">AI Vocal Transcription</CardTitle>
+            <CardDescription className="text-base text-gray-600">
+              Record consultations to generate clinical notes and patient summaries
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Link to="/dashboard/new-transcription">
+              <Button size="lg" className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white px-6 py-3 rounded-full transition-all duration-300 hover:scale-105">
+                <Mic className="h-5 w-5 mr-2" />
+                Start Recording
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Analytics Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -341,7 +416,7 @@ const Dashboard = () => {
             Recent Activity
           </CardTitle>
           <CardDescription className="text-lg">
-            Latest summary generations and delivery status
+            Latest summaries and transcriptions with delivery status
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -351,44 +426,69 @@ const Dashboard = () => {
                 <div className="animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent mx-auto mb-4"></div>
                 <p className="text-gray-500">Loading recent activity...</p>
               </div>
-            ) : recentSummaries.length === 0 ? (
+            ) : recentActivity.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-24 h-24 bg-gradient-to-br from-teal-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FileText className="h-12 w-12 text-teal-500" />
                 </div>
-                <p className="text-gray-500 mb-4">No summaries created yet</p>
-                <Link to="/dashboard/new-summary">
-                  <Button className="bg-teal-500 hover:bg-teal-600 text-white rounded-full">
-                    Create your first summary
-                  </Button>
-                </Link>
+                <p className="text-gray-500 mb-4">No activity yet</p>
+                <div className="flex justify-center gap-4">
+                  <Link to="/dashboard/new-summary">
+                    <Button className="bg-teal-500 hover:bg-teal-600 text-white rounded-full">
+                      Create your first summary
+                    </Button>
+                  </Link>
+                  <Link to="/dashboard/new-transcription">
+                    <Button className="bg-purple-500 hover:bg-purple-600 text-white rounded-full">
+                      Start transcribing
+                    </Button>
+                  </Link>
+                </div>
               </div>
             ) : (
-              recentSummaries.map((summary) => (
-                <div key={summary.id} className="flex items-center justify-between p-6 bg-gradient-to-r from-white to-gray-50 rounded-2xl border border-gray-100 hover-lift">
+              recentActivity.map((item: any) => (
+                <div key={item.id} className="flex items-center justify-between p-6 bg-gradient-to-r from-white to-gray-50 rounded-2xl border border-gray-100 hover-lift">
                   <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-gradient-to-br from-teal-100 to-blue-100 rounded-xl">
-                      {getMethodIcon(getDeliveryMethod(summary))}
+                    <div className={`p-3 rounded-xl ${
+                      item.type === 'transcription' 
+                        ? 'bg-gradient-to-br from-purple-100 to-pink-100' 
+                        : 'bg-gradient-to-br from-teal-100 to-blue-100'
+                    }`}>
+                      {getMethodIcon(getDeliveryMethod(item))}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-900 text-lg">{summary.patient_name}</p>
-                      <p className="text-gray-600">Summary Generated</p>
+                      <p className="font-semibold text-gray-900 text-lg">{item.patient_name}</p>
+                      <p className="text-gray-600">
+                        {item.type === 'transcription' ? 'Audio Transcribed' : 'Summary Generated'}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-4">
-                    <Badge className={`px-3 py-1 rounded-full font-medium ${getStatusColor(summary.sent_at ? "delivered" : "draft")}`}>
-                      {summary.sent_at ? "delivered" : "draft"}
+                    <Badge className={`px-3 py-1 rounded-full font-medium ${
+                      item.type === 'transcription' 
+                        ? getStatusColor(item.clinical_notes ? "processed" : "draft")
+                        : getStatusColor(item.sent_at ? "delivered" : "draft")
+                    }`}>
+                      {item.type === 'transcription' 
+                        ? (item.clinical_notes ? "processed" : "draft")
+                        : (item.sent_at ? "delivered" : "draft")
+                      }
                     </Badge>
-                    <span className="text-sm text-gray-500 font-medium">{getTimeAgo(summary.created_at)}</span>
+                    <span className="text-sm text-gray-500 font-medium">{getTimeAgo(item.created_at)}</span>
                   </div>
                 </div>
               ))
             )}
           </div>
-          <div className="mt-8 text-center">
+          <div className="mt-8 text-center flex justify-center gap-4">
             <Link to="/dashboard/summaries">
               <Button variant="outline" className="border-teal-200 text-teal-600 hover:bg-teal-50 rounded-full px-6 py-2">
                 View All Summaries
+              </Button>
+            </Link>
+            <Link to="/dashboard/transcriptions">
+              <Button variant="outline" className="border-purple-200 text-purple-600 hover:bg-purple-50 rounded-full px-6 py-2">
+                View All Transcriptions
               </Button>
             </Link>
           </div>

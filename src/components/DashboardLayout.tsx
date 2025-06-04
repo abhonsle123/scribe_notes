@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,7 +11,9 @@ import {
   Menu,
   X,
   Shield,
-  LogOut
+  LogOut,
+  Mic,
+  FileAudio
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -22,7 +25,9 @@ const DashboardLayout = () => {
   const navigation = [
     { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { name: "New Summary", href: "/dashboard/new-summary", icon: FileText },
+    { name: "New Transcription", href: "/dashboard/new-transcription", icon: Mic },
     { name: "Past Summaries", href: "/dashboard/summaries", icon: History },
+    { name: "Past Transcriptions", href: "/dashboard/transcriptions", icon: FileAudio },
     { name: "Settings", href: "/dashboard/settings", icon: Settings },
     { name: "Support", href: "/dashboard/support", icon: HelpCircle },
   ];
