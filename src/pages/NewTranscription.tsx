@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +48,7 @@ const NewTranscription = () => {
     });
   };
 
-  const handleAudioReady = async (audioBlob: Blob, fileName: string) => {
+  const handleAudioReady = async (audioBlob: Blob, fileName: string, recordingDuration?: number) => {
     if (!user?.id) {
       toast({
         title: "Authentication Error",
@@ -72,7 +71,7 @@ const NewTranscription = () => {
           patient_name: patientName,
           patient_email: patientEmail || null,
           original_filename: fileName,
-          audio_duration: Math.round(audioBlob.size / 1000) // Rough estimate
+          audio_duration: recordingDuration ? Math.round(recordingDuration) : 0
         })
         .select()
         .single();
@@ -86,12 +85,13 @@ const NewTranscription = () => {
       // Convert audio to base64
       const base64Audio = await convertToBase64(audioBlob);
 
-      // Call transcription function
+      // Call transcription function with recording duration
       const { data: transcribeResult, error: transcribeError } = await supabase.functions
         .invoke('transcribe-audio', {
           body: {
             audio: base64Audio,
-            transcriptionId: transcription.id
+            transcriptionId: transcription.id,
+            recordingDuration: recordingDuration
           }
         });
 

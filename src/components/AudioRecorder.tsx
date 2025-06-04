@@ -1,4 +1,3 @@
-
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Mic, Square, Upload, Play, Pause } from 'lucide-react';
 
 interface AudioRecorderProps {
-  onAudioReady: (audioBlob: Blob, fileName: string) => void;
+  onAudioReady: (audioBlob: Blob, fileName: string, recordingDuration?: number) => void;
   isProcessing: boolean;
 }
 
@@ -15,11 +14,13 @@ export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps
   const [audioURL, setAudioURL] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const recordingStartTimeRef = useRef<number>(0);
   const { toast } = useToast();
 
   const startRecording = async () => {
@@ -38,6 +39,7 @@ export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps
       
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
+      recordingStartTimeRef.current = Date.now();
 
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
@@ -49,6 +51,10 @@ export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(audioBlob);
         setAudioURL(url);
+        
+        // Calculate actual recording duration in seconds
+        const actualDuration = (Date.now() - recordingStartTimeRef.current) / 1000;
+        setRecordingDuration(actualDuration);
         
         // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop());
@@ -127,7 +133,7 @@ export const AudioRecorder = ({ onAudioReady, isProcessing }: AudioRecorderProps
     if (chunksRef.current.length > 0) {
       const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm' });
       const fileName = `recording-${new Date().toISOString().slice(0, 19)}.webm`;
-      onAudioReady(audioBlob, fileName);
+      onAudioReady(audioBlob, fileName, recordingDuration);
     }
   };
 

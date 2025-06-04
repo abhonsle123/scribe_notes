@@ -38,31 +38,6 @@ function processBase64Chunks(base64String: string, chunkSize = 32768) {
   return result;
 }
 
-// Calculate audio duration from WebM blob
-async function getAudioDuration(audioBlob: Blob): Promise<number> {
-  try {
-    // Create a temporary audio element to get duration
-    const audioUrl = URL.createObjectURL(audioBlob);
-    
-    return new Promise((resolve) => {
-      const audio = new Audio();
-      audio.onloadedmetadata = () => {
-        const duration = audio.duration;
-        URL.revokeObjectURL(audioUrl);
-        resolve(isNaN(duration) ? 0 : Math.round(duration));
-      };
-      audio.onerror = () => {
-        URL.revokeObjectURL(audioUrl);
-        resolve(0);
-      };
-      audio.src = audioUrl;
-    });
-  } catch (error) {
-    console.error('Error calculating audio duration:', error);
-    return 0;
-  }
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -98,12 +73,11 @@ serve(async (req) => {
     // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio)
     
-    // Create blob and calculate duration
+    // Create blob
     const audioBlob = new Blob([binaryAudio], { type: 'audio/webm' })
-    const calculatedDuration = await getAudioDuration(audioBlob)
     
-    // Use the more accurate duration (prefer recordingDuration from frontend if available)
-    const finalDuration = recordingDuration && recordingDuration > 0 ? Math.round(recordingDuration) : calculatedDuration
+    // Use the recording duration from frontend (in seconds, rounded)
+    const finalDuration = recordingDuration && recordingDuration > 0 ? Math.round(recordingDuration) : 0
     
     // Generate unique filename for storage
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
