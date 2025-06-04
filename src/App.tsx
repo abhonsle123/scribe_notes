@@ -16,6 +16,7 @@ import Dashboard from "./pages/Dashboard";
 import NewSummary from "./pages/NewSummary";
 import PastSummaries from "./pages/PastSummaries";
 import Settings from "./pages/Settings";
+import Feedback from "./pages/Feedback";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/faqs" element={<FAQs />} />
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/feedback" element={<Feedback />} />
             
             {/* Protected Dashboard Routes */}
             <Route path="/dashboard" element={

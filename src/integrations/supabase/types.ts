@@ -9,6 +9,59 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      feedback: {
+        Row: {
+          accuracy_rating: number | null
+          clarity_rating: number | null
+          created_at: string
+          id: string
+          open_feedback: string | null
+          overall_rating: number | null
+          recommendation_rating: number | null
+          session_id: string
+          summary_id: string | null
+          updated_at: string
+          usefulness_rating: number | null
+          user_id: string | null
+        }
+        Insert: {
+          accuracy_rating?: number | null
+          clarity_rating?: number | null
+          created_at?: string
+          id?: string
+          open_feedback?: string | null
+          overall_rating?: number | null
+          recommendation_rating?: number | null
+          session_id: string
+          summary_id?: string | null
+          updated_at?: string
+          usefulness_rating?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          accuracy_rating?: number | null
+          clarity_rating?: number | null
+          created_at?: string
+          id?: string
+          open_feedback?: string | null
+          overall_rating?: number | null
+          recommendation_rating?: number | null
+          session_id?: string
+          summary_id?: string | null
+          updated_at?: string
+          usefulness_rating?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_summary_id_fkey"
+            columns: ["summary_id"]
+            isOneToOne: false
+            referencedRelation: "summaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
@@ -39,6 +92,8 @@ export type Database = {
       summaries: {
         Row: {
           created_at: string
+          follow_up_sent: boolean | null
+          follow_up_sent_at: string | null
           id: string
           original_filename: string
           patient_email: string | null
@@ -50,6 +105,8 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          follow_up_sent?: boolean | null
+          follow_up_sent_at?: string | null
           id?: string
           original_filename: string
           patient_email?: string | null
@@ -61,6 +118,8 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          follow_up_sent?: boolean | null
+          follow_up_sent_at?: string | null
           id?: string
           original_filename?: string
           patient_email?: string | null
