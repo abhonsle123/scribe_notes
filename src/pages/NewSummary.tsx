@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { extractTextFromFile, validateFileForProcessing } from "@/utils/fileProcessor";
+import { EmailSummaryForm } from "@/components/EmailSummaryForm";
 import {
   Upload,
   FileText,
@@ -14,7 +15,6 @@ import {
   Clock,
   CheckCircle,
   Edit,
-  Send,
   Eye,
   AlertCircle,
   File,
@@ -30,6 +30,8 @@ const NewSummary = () => {
   const [dragActive, setDragActive] = useState(false);
   const [generatedSummary, setGeneratedSummary] = useState("");
   const [summaryId, setSummaryId] = useState<string | null>(null);
+  const [patientName, setPatientName] = useState("");
+  const [emailSent, setEmailSent] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -103,16 +105,17 @@ const NewSummary = () => {
       }
 
       // Extract patient name from the first file name or use a default
-      const patientName = files[0]?.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || "Unknown Patient";
+      const extractedPatientName = files[0]?.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || "Unknown Patient";
+      setPatientName(extractedPatientName);
 
       const { data, error } = await supabase
         .from('summaries')
         .insert({
           user_id: user.id,
-          patient_name: patientName,
+          patient_name: extractedPatientName,
           original_filename: files.map(f => f.name).join(', '),
           summary_content: summaryContent,
-          patient_email: null, // Will be updated when sent
+          patient_email: null,
           sent_at: null
         })
         .select()
@@ -127,7 +130,6 @@ const NewSummary = () => {
       console.log('Summary saved successfully:', data.id);
     } catch (error) {
       console.error('Failed to save summary:', error);
-      // Don't show error to user as this is background functionality
     }
   };
 
@@ -257,6 +259,10 @@ const NewSummary = () => {
     }
   };
 
+  const handleEmailSent = () => {
+    setEmailSent(true);
+  };
+
   if (isProcessed) {
     return (
       <div className="space-y-6">
@@ -265,9 +271,9 @@ const NewSummary = () => {
             <h1 className="text-3xl font-bold text-gray-900">Summary Generated</h1>
             <p className="text-gray-600 mt-1">Review and send your patient summary</p>
           </div>
-          <Badge className="bg-green-100 text-green-700 border-green-200">
+          <Badge className={emailSent ? "bg-green-100 text-green-700 border-green-200" : "bg-blue-100 text-blue-700 border-blue-200"}>
             <CheckCircle className="h-4 w-4 mr-1" />
-            Ready to Send
+            {emailSent ? "Email Sent" : "Ready to Send"}
           </Badge>
         </div>
 
@@ -300,48 +306,37 @@ const NewSummary = () => {
                       setIsProcessed(false);
                       setGeneratedSummary("");
                       setSummaryId(null);
+                      setEmailSent(false);
                     }}
                   >
                     <Edit className="h-4 w-4 mr-2" />
                     Generate New Summary
-                  </Button>
-                  <Button className="bg-blue-600 hover:bg-blue-700 flex items-center">
-                    <Send className="h-4 w-4 mr-2" />
-                    Send to Patient
                   </Button>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Delivery Options */}
+          {/* Email Sending */}
           <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Delivery Options</CardTitle>
-                <CardDescription>Choose how to send this summary</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button variant="outline" className="w-full justify-start">
-                  <Send className="h-4 w-4 mr-2" />
-                  Send via Email
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Send className="h-4 w-4 mr-2" />
-                  Send via SMS
-                </Button>
-                <Button variant="outline" className="w-full justify-start">
-                  <Send className="h-4 w-4 mr-2" />
-                  Send to Patient Portal
-                </Button>
-              </CardContent>
-            </Card>
+            {summaryId && (
+              <EmailSummaryForm
+                summaryId={summaryId}
+                patientName={patientName}
+                summaryContent={generatedSummary}
+                onEmailSent={handleEmailSent}
+              />
+            )}
 
             <Card>
               <CardHeader>
                 <CardTitle>Summary Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Patient:</span>
+                  <span className="font-medium">{patientName}</span>
+                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">AI Model:</span>
                   <span className="font-medium">Gemini 2.0 Flash</span>
@@ -356,7 +351,9 @@ const NewSummary = () => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Status:</span>
-                  <Badge className="bg-green-100 text-green-700 text-xs">Ready</Badge>
+                  <Badge className={emailSent ? "bg-green-100 text-green-700 text-xs" : "bg-blue-100 text-blue-700 text-xs"}>
+                    {emailSent ? "Sent" : "Ready"}
+                  </Badge>
                 </div>
                 {summaryId && (
                   <div className="flex justify-between text-sm">
