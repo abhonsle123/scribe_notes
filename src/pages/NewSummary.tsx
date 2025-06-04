@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +20,10 @@ import {
   AlertCircle,
   File,
   Image,
-  X
+  X,
+  Sparkles,
+  Heart,
+  Users
 } from "lucide-react";
 
 const NewSummary = () => {
@@ -312,104 +316,103 @@ const NewSummary = () => {
 
   if (isProcessed) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Summary Generated</h1>
-            <p className="text-gray-600 mt-1">Review and send your patient summary</p>
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
+        <div className="container mx-auto px-6 py-8 space-y-8">
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-turquoise to-sky-blue rounded-2xl mb-4 animate-pulse-gentle">
+              <CheckCircle className="h-8 w-8 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+              Summary Generated Successfully
+            </h1>
+            <p className="text-xl text-gray-600">Your patient-friendly summary is ready for review and delivery</p>
           </div>
-          <Badge className={emailSent ? "bg-green-100 text-green-700 border-green-200" : "bg-blue-100 text-blue-700 border-blue-200"}>
-            <CheckCircle className="h-4 w-4 mr-1" />
-            {emailSent ? "Email Sent" : "Ready to Send"}
-          </Badge>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Summary Preview */}
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Eye className="h-5 w-5 mr-2" />
-                  Patient Summary Preview
-                </CardTitle>
-                <CardDescription>
-                  AI-generated summary in patient-friendly language (9th grade reading level)
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <div className="prose max-w-none">
-                    <div className="whitespace-pre-line text-gray-800">
-                      {generatedSummary}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Summary Preview */}
+            <div className="lg:col-span-2">
+              <Card className="glass-card border-0 shadow-xl hover-lift">
+                <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
+                  <CardTitle className="flex items-center text-2xl">
+                    <div className="p-2 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-xl mr-3">
+                      <Eye className="h-6 w-6 text-turquoise" />
+                    </div>
+                    Patient Summary
+                  </CardTitle>
+                  <CardDescription className="text-lg">
+                    AI-generated summary in patient-friendly language
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-8">
+                  <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 p-8 rounded-2xl border border-gray-100">
+                    <div className="prose max-w-none">
+                      <div className="whitespace-pre-line text-gray-800 leading-relaxed">
+                        {generatedSummary}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-4 flex space-x-3">
-                  <Button 
-                    variant="outline" 
-                    className="flex items-center"
-                    onClick={() => {
-                      setIsProcessed(false);
-                      setGeneratedSummary("");
-                      setSummaryId(null);
-                      setEmailSent(false);
-                    }}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Generate New Summary
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Email Sending */}
-          <div className="space-y-6">
-            {summaryId && (
-              <EmailSummaryForm
-                summaryId={summaryId}
-                patientName={patientName}
-                summaryContent={generatedSummary}
-                onEmailSent={handleEmailSent}
-              />
-            )}
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Summary Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Patient:</span>
-                  <span className="font-medium">{patientName}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">AI Model:</span>
-                  <span className="font-medium">Gemini 2.0 Flash</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Reading Level:</span>
-                  <span className="font-medium">Grade 9</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Word Count:</span>
-                  <span className="font-medium">{generatedSummary.split(' ').length} words</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Status:</span>
-                  <Badge className={emailSent ? "bg-green-100 text-green-700 text-xs" : "bg-blue-100 text-blue-700 text-xs"}>
-                    {emailSent ? "Sent" : "Ready"}
-                  </Badge>
-                </div>
-                {summaryId && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Saved:</span>
-                    <Badge className="bg-blue-100 text-blue-700 text-xs">Database</Badge>
+                  <div className="mt-6 flex space-x-4">
+                    <Button 
+                      variant="outline" 
+                      className="flex items-center border-2 border-turquoise/20 text-turquoise hover:bg-turquoise/5 rounded-full px-6 py-3"
+                      onClick={() => {
+                        setIsProcessed(false);
+                        setGeneratedSummary("");
+                        setSummaryId(null);
+                        setEmailSent(false);
+                      }}
+                    >
+                      <Edit className="h-5 w-5 mr-2" />
+                      Generate New Summary
+                    </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Email Sending */}
+            <div className="space-y-8">
+              {summaryId && (
+                <EmailSummaryForm
+                  summaryId={summaryId}
+                  patientName={patientName}
+                  summaryContent={generatedSummary}
+                  onEmailSent={handleEmailSent}
+                />
+              )}
+
+              <Card className="glass-card border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Sparkles className="h-5 w-5 text-purple-500 mr-2" />
+                    Summary Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-600 flex items-center">
+                      <Users className="h-4 w-4 mr-2" />
+                      Patient
+                    </span>
+                    <span className="font-semibold text-gray-800">{patientName}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-600">Reading Level</span>
+                    <Badge className="bg-turquoise/10 text-turquoise border-turquoise/20">Grade 9</Badge>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-600">Word Count</span>
+                    <span className="font-medium">{generatedSummary.split(' ').length} words</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-gray-600">Status</span>
+                    <Badge className={emailSent ? "bg-green-100 text-green-700 border-green-200" : "bg-sky-blue/10 text-sky-blue border-sky-blue/20"}>
+                      {emailSent ? "Delivered" : "Ready to Send"}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
@@ -418,211 +421,239 @@ const NewSummary = () => {
 
   if (isProcessing) {
     return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Processing Summary</h1>
-          <p className="text-gray-600">Gemini 2.0 Flash is converting your discharge summary to patient-friendly language...</p>
-        </div>
-
-        <Card className="max-w-2xl mx-auto">
-          <CardContent className="p-8 text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-6"></div>
-            <h3 className="text-lg font-semibold mb-2">Generating Patient Summary</h3>
-            <p className="text-gray-600 mb-6">
-              Converting complex medical language to 9th-grade reading level with empathetic tone...
-            </p>
-            <div className="space-y-2 text-sm text-gray-500">
-              <div className="flex items-center justify-center">
-                <CheckCircle className="h-4 w-4 text-green-600 mr-2" />
-                Files processed and content extracted
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 flex items-center justify-center">
+        <div className="text-center max-w-2xl mx-auto px-6">
+          <div className="mb-8">
+            <div className="relative">
+              <div className="w-24 h-24 bg-gradient-to-br from-turquoise to-sky-blue rounded-full mx-auto mb-6 animate-pulse-gentle flex items-center justify-center">
+                <Sparkles className="h-12 w-12 text-white animate-spin" />
               </div>
-              <div className="flex items-center justify-center">
-                <Clock className="h-4 w-4 text-blue-600 mr-2" />
-                AI analyzing and converting medical content...
-              </div>
+              <div className="absolute inset-0 bg-gradient-to-br from-turquoise/20 to-sky-blue/20 rounded-full w-32 h-32 mx-auto animate-ping"></div>
             </div>
-          </CardContent>
-        </Card>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-4">
+              Creating Your Summary
+            </h1>
+            <p className="text-xl text-gray-600 mb-8">
+              Our AI is carefully converting complex medical language into clear, patient-friendly explanations...
+            </p>
+          </div>
+
+          <Card className="glass-card border-0 shadow-xl max-w-lg mx-auto">
+            <CardContent className="p-8">
+              <div className="space-y-4">
+                <div className="flex items-center text-green-600">
+                  <CheckCircle className="h-5 w-5 mr-3" />
+                  <span>Documents processed successfully</span>
+                </div>
+                <div className="flex items-center text-turquoise">
+                  <Clock className="h-5 w-5 mr-3 animate-spin" />
+                  <span>AI analyzing medical content...</span>
+                </div>
+                <div className="flex items-center text-gray-400">
+                  <Heart className="h-5 w-5 mr-3" />
+                  <span>Converting to patient-friendly language</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Create New Summary</h1>
-        <p className="text-gray-600 mt-1">
-          Upload discharge summaries to generate patient-friendly versions using Gemini 2.0 Flash
-        </p>
-      </div>
-
-      {/* Security Notice */}
-      <Card className="border-green-200 bg-green-50">
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-2">
-            <Shield className="h-5 w-5 text-green-600" />
-            <span className="text-green-800 font-medium">Secure Platform</span>
-            <span className="text-green-700">• End-to-end encryption • Data not stored</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* File Upload */}
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload Documents</CardTitle>
-              <CardDescription>
-                Upload PDF files, images, or Word documents containing discharge summaries
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-                  dragActive
-                    ? 'border-blue-500 bg-blue-50'
-                    : files.length > 0
-                    ? 'border-green-500 bg-green-50'
-                    : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
-                onClick={handleUploadAreaClick}
-              >
-                <div className="space-y-4">
-                  <Upload className="h-12 w-12 text-gray-400 mx-auto" />
-                  <div>
-                    <p className="text-lg font-semibold text-gray-700">
-                      Drop your files here, or click to browse
-                    </p>
-                    <p className="text-gray-500">PDF, DOC, DOCX, JPG, PNG files • Max 10MB each</p>
-                  </div>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={handleFileChange}
-                    multiple
-                    className="hidden"
-                    id="file-upload"
-                  />
-                  <Button variant="outline" className="cursor-pointer">
-                    Choose Files
-                  </Button>
-                </div>
-              </div>
-
-              {/* Uploaded Files List */}
-              {files.length > 0 && (
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-3">Uploaded Files ({files.length})</h4>
-                  <div className="space-y-2">
-                    {files.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div className="flex items-center space-x-3">
-                          {getFileIcon(file)}
-                          <div>
-                            <p className="text-sm font-medium text-gray-900 truncate max-w-xs">{file.name}</p>
-                            <p className="text-xs text-gray-500">{formatFileSize(file.size)}</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(index)}
-                          className="text-gray-400 hover:text-red-600"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Optional Notes */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Additional Notes (Optional)</CardTitle>
-              <CardDescription>
-                Add specific instructions for the AI (e.g., focus on medication changes, emphasize follow-up importance)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Textarea
-                placeholder="e.g., Patient is elderly and needs extra medication explanations, emphasize the importance of follow-up appointments..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="min-h-[100px]"
-              />
-            </CardContent>
-          </Card>
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
+      <div className="container mx-auto px-6 py-8 space-y-8">
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-4">
+            Create Patient Summary
+          </h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Upload medical documents and let our AI transform them into clear, compassionate summaries 
+            that patients and families can easily understand
+          </p>
         </div>
 
-        {/* Process Summary */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Generate Summary</CardTitle>
-              <CardDescription>
-                Convert to patient-friendly language using Gemini 2.0 Flash
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button
-                onClick={handleGenerateSummary}
-                disabled={files.length === 0 || isProcessing}
-                className="w-full bg-blue-600 hover:bg-blue-700"
-                size="lg"
-              >
-                <FileText className="h-5 w-5 mr-2" />
-                {isProcessing ? 'Processing...' : 'Generate Summary'}
-              </Button>
-              
-              {files.length === 0 && (
-                <div className="flex items-start space-x-2 text-sm text-amber-600">
-                  <AlertCircle className="h-4 w-4 mt-0.5" />
-                  <span>Please upload at least one file first</span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* Security Notice */}
+        <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 max-w-4xl mx-auto">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center space-x-3">
+              <div className="p-2 bg-green-100 rounded-full">
+                <Shield className="h-6 w-6 text-green-600" />
+              </div>
+              <span className="text-green-800 font-semibold text-lg">HIPAA Compliant & Secure</span>
+              <span className="text-green-700">• End-to-end encryption • No data retention</span>
+            </div>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>AI Features</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
-              <div className="flex items-start space-x-3">
-                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
-                  <span className="text-xs font-bold">✓</span>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+          {/* File Upload */}
+          <div className="lg:col-span-2">
+            <Card className="glass-card border-0 shadow-xl hover-lift">
+              <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
+                <CardTitle className="flex items-center text-2xl">
+                  <div className="p-2 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-xl mr-3">
+                    <Upload className="h-6 w-6 text-turquoise" />
+                  </div>
+                  Upload Documents
+                </CardTitle>
+                <CardDescription className="text-lg">
+                  Drag and drop your medical documents or click to browse
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-8">
+                <div
+                  className={`border-3 border-dashed rounded-2xl p-12 text-center transition-all duration-300 cursor-pointer ${
+                    dragActive
+                      ? 'border-turquoise bg-turquoise/5 scale-105'
+                      : files.length > 0
+                      ? 'border-green-400 bg-green-50/50'
+                      : 'border-gray-300 hover:border-turquoise/50 hover:bg-turquoise/2'
+                  }`}
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={handleUploadAreaClick}
+                >
+                  <div className="space-y-6">
+                    <div className="w-20 h-20 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-2xl mx-auto flex items-center justify-center">
+                      <Upload className="h-10 w-10 text-turquoise" />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-semibold text-gray-800 mb-2">
+                        Drop your files here
+                      </p>
+                      <p className="text-gray-500 text-lg">PDF, DOC, DOCX, JPG, PNG • Max 10MB each</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                      onChange={handleFileChange}
+                      multiple
+                      className="hidden"
+                      id="file-upload"
+                    />
+                    <Button className="bg-gradient-to-r from-turquoise to-sky-blue hover:from-turquoise/90 hover:to-sky-blue/90 text-white rounded-full px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300">
+                      Choose Files
+                    </Button>
+                  </div>
                 </div>
-                <span>9th-grade reading level conversion</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
-                  <span className="text-xs font-bold">✓</span>
+
+                {/* Uploaded Files List */}
+                {files.length > 0 && (
+                  <div className="mt-8">
+                    <h4 className="text-lg font-semibold text-gray-800 mb-4">Uploaded Files ({files.length})</h4>
+                    <div className="space-y-3">
+                      {files.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-100">
+                          <div className="flex items-center space-x-4">
+                            <div className="p-2 bg-turquoise/10 rounded-lg">
+                              {getFileIcon(file)}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900 truncate max-w-xs">{file.name}</p>
+                              <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(index)}
+                            className="text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full"
+                          >
+                            <X className="h-5 w-5" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Optional Notes */}
+            <Card className="glass-card border-0 shadow-xl hover-lift mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl">
+                  <Edit className="h-5 w-5 text-purple-500 mr-2" />
+                  Additional Instructions (Optional)
+                </CardTitle>
+                <CardDescription className="text-base">
+                  Add specific guidance for our AI to personalize the summary
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  placeholder="e.g., Patient is elderly and needs extra medication explanations, emphasize follow-up importance, focus on dietary changes..."
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="min-h-[120px] border-2 border-gray-200 rounded-xl focus:border-turquoise focus:ring-turquoise text-base"
+                />
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* AI Features & Generate */}
+          <div className="space-y-6">
+            <Card className="glass-card border-0 shadow-xl">
+              <CardHeader className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-br from-turquoise to-sky-blue rounded-2xl mx-auto mb-4 flex items-center justify-center">
+                  <Sparkles className="h-8 w-8 text-white" />
                 </div>
-                <span>Explains medication purposes</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
-                  <span className="text-xs font-bold">✓</span>
+                <CardTitle className="text-xl">Generate Summary</CardTitle>
+                <CardDescription className="text-base">
+                  Transform complex medical language into patient-friendly explanations
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Button
+                  onClick={handleGenerateSummary}
+                  disabled={files.length === 0 || isProcessing}
+                  className="w-full bg-gradient-to-r from-turquoise to-sky-blue hover:from-turquoise/90 hover:to-sky-blue/90 text-white rounded-full py-4 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
+                  size="lg"
+                >
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  {isProcessing ? 'Processing...' : 'Generate Summary'}
+                </Button>
+                
+                {files.length === 0 && (
+                  <div className="flex items-center space-x-2 text-amber-600 bg-amber-50 p-3 rounded-lg">
+                    <AlertCircle className="h-5 w-5" />
+                    <span>Upload documents first to continue</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="glass-card border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center text-lg">
+                  <Heart className="h-5 w-5 text-pink-500 mr-2" />
+                  AI Features
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-turquoise rounded-full mt-2"></div>
+                  <span className="text-gray-700">9th-grade reading level conversion</span>
                 </div>
-                <span>Empathetic, supportive tone</span>
-              </div>
-              <div className="flex items-start space-x-3">
-                <div className="bg-blue-100 text-blue-600 rounded-full p-1 mt-0.5">
-                  <span className="text-xs font-bold">✓</span>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-sky-blue rounded-full mt-2"></div>
+                  <span className="text-gray-700">Clear medication explanations</span>
                 </div>
-                <span>Structured sections for clarity</span>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-purple-400 rounded-full mt-2"></div>
+                  <span className="text-gray-700">Empathetic, supportive tone</span>
+                </div>
+                <div className="flex items-start space-x-3">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                  <span className="text-gray-700">Structured, easy-to-follow sections</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

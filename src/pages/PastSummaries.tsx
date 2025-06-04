@@ -23,7 +23,11 @@ import {
   Trash2,
   CheckCircle,
   Clock,
-  Send
+  Send,
+  History,
+  RefreshCw,
+  Users,
+  Heart
 } from "lucide-react";
 import { format } from "date-fns";
 import { EmailSummaryForm } from "@/components/EmailSummaryForm";
@@ -141,14 +145,14 @@ const PastSummaries = () => {
   const getStatusBadge = (sentAt: string | null) => {
     if (sentAt) {
       return (
-        <Badge className="bg-green-100 text-green-700 border-green-200">
+        <Badge className="bg-green-100 text-green-700 border-green-200 rounded-full px-3 py-1">
           <CheckCircle className="h-3 w-3 mr-1" />
-          Sent
+          Delivered
         </Badge>
       );
     }
     return (
-      <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200">
+      <Badge className="bg-amber-100 text-amber-700 border-amber-200 rounded-full px-3 py-1">
         <Clock className="h-3 w-3 mr-1" />
         Draft
       </Badge>
@@ -157,13 +161,15 @@ const PastSummaries = () => {
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Past Summaries</h1>
-          <p className="text-gray-600 mt-1">Loading your recent summaries...</p>
-        </div>
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-turquoise to-sky-blue rounded-2xl mx-auto mb-6 animate-pulse-gentle flex items-center justify-center">
+            <History className="h-8 w-8 text-white animate-spin" />
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+            Loading Summaries
+          </h1>
+          <p className="text-gray-600">Retrieving your recent patient summaries...</p>
         </div>
       </div>
     );
@@ -173,119 +179,130 @@ const PastSummaries = () => {
     const isDraft = !selectedSummary.sent_at;
     
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Summary Details</h1>
-            <p className="text-gray-600 mt-1">View and manage your summary</p>
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
+        <div className="container mx-auto px-6 py-8 space-y-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+                Summary Details
+              </h1>
+              <p className="text-xl text-gray-600">Review and manage your patient summary</p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setSelectedSummary(null)}
+                className="border-2 border-turquoise/20 text-turquoise hover:bg-turquoise/5 rounded-full px-6"
+              >
+                ← Back to List
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteSummary(selectedSummary.id)}
+                className="bg-red-500 hover:bg-red-600 text-white rounded-full px-6"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </div>
           </div>
-          <div className="flex items-center space-x-3">
-            <Button variant="outline" onClick={() => setSelectedSummary(null)}>
-              Back to List
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteSummary(selectedSummary.id)}
-              className="flex items-center"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Eye className="h-5 w-5 mr-2" />
-                  Summary Content
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-gray-50 p-6 rounded-lg">
-                  <div className="prose max-w-none">
-                    <div className="whitespace-pre-line text-gray-800">
-                      {selectedSummary.summary_content}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-8">
+              <Card className="glass-card border-0 shadow-xl">
+                <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
+                  <CardTitle className="flex items-center text-2xl">
+                    <div className="p-2 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-xl mr-3">
+                      <Eye className="h-6 w-6 text-turquoise" />
+                    </div>
+                    Summary Content
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-8">
+                  <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 p-8 rounded-2xl border border-gray-100">
+                    <div className="prose max-w-none">
+                      <div className="whitespace-pre-line text-gray-800 leading-relaxed">
+                        {selectedSummary.summary_content}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Show email form only for draft summaries */}
-            {isDraft && (
-              <EmailSummaryForm
-                summaryId={selectedSummary.id}
-                patientName={selectedSummary.patient_name}
-                summaryContent={selectedSummary.summary_content}
-                onEmailSent={handleEmailSent}
-              />
-            )}
-          </div>
+              {/* Show email form only for draft summaries */}
+              {isDraft && (
+                <EmailSummaryForm
+                  summaryId={selectedSummary.id}
+                  patientName={selectedSummary.patient_name}
+                  summaryContent={selectedSummary.summary_content}
+                  onEmailSent={handleEmailSent}
+                />
+              )}
+            </div>
 
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Summary Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-3">
-                    <User className="h-4 w-4 text-gray-400" />
+            <div className="space-y-6">
+              <Card className="glass-card border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <User className="h-5 w-5 text-purple-500 mr-2" />
+                    Summary Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center space-x-4 p-4 bg-turquoise/5 rounded-xl">
+                    <Users className="h-5 w-5 text-turquoise" />
                     <div>
                       <p className="text-sm text-gray-600">Patient</p>
-                      <p className="font-medium">{selectedSummary.patient_name}</p>
+                      <p className="font-semibold text-gray-800">{selectedSummary.patient_name}</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-3">
-                    <FileText className="h-4 w-4 text-gray-400" />
+                  <div className="flex items-center space-x-4 p-4 bg-sky-blue/5 rounded-xl">
+                    <FileText className="h-5 w-5 text-sky-blue" />
                     <div>
                       <p className="text-sm text-gray-600">Original File</p>
-                      <p className="font-medium">{selectedSummary.original_filename}</p>
+                      <p className="font-medium text-gray-800">{selectedSummary.original_filename}</p>
                     </div>
                   </div>
                   
-                  <div className="flex items-center space-x-3">
-                    <Calendar className="h-4 w-4 text-gray-400" />
+                  <div className="flex items-center space-x-4 p-4 bg-purple-100/50 rounded-xl">
+                    <Calendar className="h-5 w-5 text-purple-500" />
                     <div>
                       <p className="text-sm text-gray-600">Created</p>
-                      <p className="font-medium">
+                      <p className="font-medium text-gray-800">
                         {format(new Date(selectedSummary.created_at), 'MMM d, yyyy HH:mm')}
                       </p>
                     </div>
                   </div>
 
                   {selectedSummary.patient_email && (
-                    <div className="flex items-center space-x-3">
-                      <Mail className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center space-x-4 p-4 bg-green-50 rounded-xl">
+                      <Mail className="h-5 w-5 text-green-600" />
                       <div>
                         <p className="text-sm text-gray-600">Patient Email</p>
-                        <p className="font-medium">{selectedSummary.patient_email}</p>
+                        <p className="font-medium text-gray-800">{selectedSummary.patient_email}</p>
                       </div>
                     </div>
                   )}
 
                   {selectedSummary.sent_at && (
-                    <div className="flex items-center space-x-3">
-                      <Send className="h-4 w-4 text-gray-400" />
+                    <div className="flex items-center space-x-4 p-4 bg-emerald-50 rounded-xl">
+                      <Send className="h-5 w-5 text-emerald-600" />
                       <div>
-                        <p className="text-sm text-gray-600">Sent At</p>
-                        <p className="font-medium">
+                        <p className="text-sm text-gray-600">Delivered At</p>
+                        <p className="font-medium text-gray-800">
                           {format(new Date(selectedSummary.sent_at), 'MMM d, yyyy HH:mm')}
                         </p>
                       </div>
                     </div>
                   )}
                   
-                  <div className="pt-2">
+                  <div className="pt-4 border-t border-gray-200">
                     {getStatusBadge(selectedSummary.sent_at)}
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </div>
       </div>
@@ -293,104 +310,124 @@ const PastSummaries = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Past Summaries</h1>
-          <p className="text-gray-600 mt-1">
-            Summaries from the last 3 days ({summaries.length} total)
-          </p>
-        </div>
-        <Button onClick={fetchSummaries} variant="outline">
-          Refresh
-        </Button>
-      </div>
-
-      {summaries.length === 0 ? (
-        <Card className="text-center p-8">
-          <CardContent>
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              No Summaries Found
-            </h3>
-            <p className="text-gray-600 mb-4">
-              You haven't generated any summaries in the last 3 days.
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
+      <div className="container mx-auto px-6 py-8 space-y-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+              Past Summaries
+            </h1>
+            <p className="text-xl text-gray-600">
+              Recent patient summaries from the last 3 days ({summaries.length} total)
             </p>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              Create New Summary
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Summaries</CardTitle>
-            <CardDescription>
-              Click on any summary to view details. Summaries are automatically deleted after 3 days.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Original File</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {summaries.map((summary) => (
-                  <TableRow key={summary.id} className="cursor-pointer hover:bg-gray-50">
-                    <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <User className="h-4 w-4 text-gray-400" />
-                        <span className="font-medium">{summary.patient_name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <FileText className="h-4 w-4 text-gray-400" />
-                        <span className="truncate max-w-xs">{summary.original_filename}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(summary.sent_at)}
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(summary.created_at), 'MMM d, HH:mm')}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedSummary(summary)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteSummary(summary.id);
-                          }}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+          </div>
+          <Button 
+            onClick={fetchSummaries} 
+            variant="outline"
+            className="border-2 border-turquoise/20 text-turquoise hover:bg-turquoise/5 rounded-full px-6"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+
+        {summaries.length === 0 ? (
+          <Card className="glass-card border-0 shadow-xl text-center p-12 max-w-2xl mx-auto">
+            <CardContent>
+              <div className="w-24 h-24 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-2xl mx-auto mb-6 flex items-center justify-center">
+                <FileText className="h-12 w-12 text-turquoise" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-800 mb-4">
+                No Summaries Found
+              </h3>
+              <p className="text-gray-600 mb-8 text-lg">
+                You haven't generated any summaries in the last 3 days.
+              </p>
+              <Button className="bg-gradient-to-r from-turquoise to-sky-blue hover:from-turquoise/90 hover:to-sky-blue/90 text-white rounded-full px-8 py-3 text-lg">
+                <Heart className="h-5 w-5 mr-2" />
+                Create Your First Summary
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="glass-card border-0 shadow-xl">
+            <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
+              <CardTitle className="flex items-center text-2xl">
+                <div className="p-2 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-xl mr-3">
+                  <History className="h-6 w-6 text-turquoise" />
+                </div>
+                Recent Summaries
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Click on any summary to view details. Summaries are automatically cleaned up after 3 days.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-8">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-gray-200">
+                    <TableHead className="text-gray-700 font-semibold">Patient</TableHead>
+                    <TableHead className="text-gray-700 font-semibold">Original File</TableHead>
+                    <TableHead className="text-gray-700 font-semibold">Status</TableHead>
+                    <TableHead className="text-gray-700 font-semibold">Created</TableHead>
+                    <TableHead className="text-gray-700 font-semibold">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+                </TableHeader>
+                <TableBody>
+                  {summaries.map((summary) => (
+                    <TableRow key={summary.id} className="cursor-pointer hover:bg-turquoise/5 transition-colors border-gray-100">
+                      <TableCell>
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-turquoise/10 rounded-lg">
+                            <Users className="h-4 w-4 text-turquoise" />
+                          </div>
+                          <span className="font-semibold text-gray-800">{summary.patient_name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <FileText className="h-4 w-4 text-sky-blue" />
+                          <span className="truncate max-w-xs text-gray-700">{summary.original_filename}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        {getStatusBadge(summary.sent_at)}
+                      </TableCell>
+                      <TableCell className="text-gray-600">
+                        {format(new Date(summary.created_at), 'MMM d, HH:mm')}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedSummary(summary)}
+                            className="border-turquoise/20 text-turquoise hover:bg-turquoise/5 rounded-full"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteSummary(summary.id);
+                            }}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };

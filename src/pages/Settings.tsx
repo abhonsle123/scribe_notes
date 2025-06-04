@@ -11,7 +11,20 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Settings as SettingsIcon, Save, FileText, Clock, Trash2, Plus, Check } from "lucide-react";
+import { 
+  Settings as SettingsIcon, 
+  Save, 
+  FileText, 
+  Clock, 
+  Trash2, 
+  Plus, 
+  Check,
+  Palette,
+  Shield,
+  User,
+  Sparkles,
+  Heart
+} from "lucide-react";
 
 interface UserSettings {
   summary_template: string;
@@ -325,257 +338,304 @@ const Settings = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-turquoise to-sky-blue rounded-2xl mx-auto mb-6 animate-pulse-gentle flex items-center justify-center">
+            <SettingsIcon className="h-8 w-8 text-white animate-spin" />
+          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+            Loading Settings
+          </h1>
+          <p className="text-gray-600">Preparing your preferences...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Settings</h1>
-          <p className="text-gray-600 mt-1">Manage your summary templates and data retention preferences</p>
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
+      <div className="container mx-auto px-6 py-8 space-y-8">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+              Settings
+            </h1>
+            <p className="text-xl text-gray-600">Customize your summary templates and preferences</p>
+          </div>
+          <Button 
+            onClick={saveSettings} 
+            disabled={isSaving} 
+            className="bg-gradient-to-r from-turquoise to-sky-blue hover:from-turquoise/90 hover:to-sky-blue/90 text-white rounded-full px-8 py-3 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            <Save className="h-5 w-5 mr-2" />
+            {isSaving ? 'Saving...' : 'Save Changes'}
+          </Button>
         </div>
-        <Button onClick={saveSettings} disabled={isSaving} className="bg-blue-600 hover:bg-blue-700">
-          <Save className="h-4 w-4 mr-2" />
-          {isSaving ? 'Saving...' : 'Save Changes'}
-        </Button>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Template Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <FileText className="h-5 w-5 mr-2" />
-              Summary Template
-            </CardTitle>
-            <CardDescription>
-              Choose how your medical summaries are structured and formatted
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="template-select">Template Type</Label>
-              <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a template" />
-                </SelectTrigger>
-                <SelectContent>
-                  {templatePresets.map((preset) => (
-                    <SelectItem key={preset.id} value={preset.name}>
-                      {preset.description}
-                    </SelectItem>
-                  ))}
-                  {customTemplates.map((template) => (
-                    <SelectItem key={template.id} value={`custom_${template.id}`}>
-                      {template.name} (Custom)
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="custom">New Custom Template</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {selectedTemplate === 'custom' && (
-              <div className="space-y-2">
-                <Label htmlFor="custom-template">Custom Template</Label>
-                <Textarea
-                  id="custom-template"
-                  placeholder="Enter your custom template instructions for the AI..."
-                  value={customTemplate}
-                  onChange={(e) => {
-                    setCustomTemplate(e.target.value);
-                    setHasUnsavedChanges(true);
-                  }}
-                  className="min-h-[120px]"
-                />
-                <p className="text-xs text-gray-500">
-                  This template will be used to instruct the AI on how to structure and format your summaries.
-                </p>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Current Template Preview</Label>
-              <div className="bg-gray-50 p-3 rounded-md text-sm text-gray-700 max-h-40 overflow-y-auto">
-                {getCurrentTemplateDisplay()}
-              </div>
-            </div>
-
-            <div className="flex space-x-2">
-              <Button 
-                onClick={confirmTemplateSelection}
-                disabled={isSaving || !hasUnsavedChanges}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                <Check className="h-4 w-4 mr-2" />
-                {isSaving ? 'Confirming...' : 'Confirm Template'}
-              </Button>
-              
-              <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" disabled={customTemplates.length >= 5}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Save as Custom ({customTemplates.length}/5)
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Save Custom Template</DialogTitle>
-                    <DialogDescription>
-                      Create a new custom template that you can reuse later.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="template-name">Template Name</Label>
-                      <Input
-                        id="template-name"
-                        placeholder="My Custom Template"
-                        value={newTemplateName}
-                        onChange={(e) => setNewTemplateName(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="template-content">Template Content</Label>
-                      <Textarea
-                        id="template-content"
-                        placeholder="Enter your template instructions..."
-                        value={newTemplateContent}
-                        onChange={(e) => setNewTemplateContent(e.target.value)}
-                        className="min-h-[120px]"
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={saveCustomTemplate}>Save Template</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            {customTemplates.length > 0 && (
-              <div className="space-y-2">
-                <Label>Your Custom Templates</Label>
-                <div className="space-y-2">
-                  {customTemplates.map((template) => (
-                    <div key={template.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                      <span className="text-sm font-medium">{template.name}</span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteCustomTemplate(template.id, template.name)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ))}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Template Settings */}
+          <Card className="glass-card border-0 shadow-xl hover-lift">
+            <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
+              <CardTitle className="flex items-center text-2xl">
+                <div className="p-2 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-xl mr-3">
+                  <Palette className="h-6 w-6 text-turquoise" />
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Data Retention Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Clock className="h-5 w-5 mr-2" />
-              Data Retention
-            </CardTitle>
-            <CardDescription>
-              Control how long your summaries and files are stored
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Auto-delete summaries</Label>
-                <p className="text-sm text-gray-500">
-                  Automatically delete old summaries based on retention period
-                </p>
-              </div>
-              <Switch
-                checked={settings.auto_delete_enabled}
-                onCheckedChange={(checked) => 
-                  setSettings(prev => ({ ...prev, auto_delete_enabled: checked }))
-                }
-              />
-            </div>
-
-            {settings.auto_delete_enabled && (
-              <div className="space-y-2">
-                <Label htmlFor="retention-period">Retention Period</Label>
-                <Select 
-                  value={settings.data_retention_days?.toString() || '3'}
-                  onValueChange={(value) => 
-                    setSettings(prev => ({ ...prev, data_retention_days: parseInt(value) }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select retention period" />
+                Summary Templates
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Choose how your medical summaries are structured and formatted
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="template-select" className="text-base font-semibold text-gray-700">Template Type</Label>
+                <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+                  <SelectTrigger className="border-2 border-gray-200 rounded-xl h-12 text-base">
+                    <SelectValue placeholder="Select a template" />
                   </SelectTrigger>
                   <SelectContent>
-                    {retentionOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value.toString()}>
-                        <div className="flex flex-col">
-                          <span>{option.label}</span>
-                          <span className="text-xs text-gray-500">{option.description}</span>
-                        </div>
+                    {templatePresets.map((preset) => (
+                      <SelectItem key={preset.id} value={preset.name}>
+                        {preset.description}
                       </SelectItem>
                     ))}
+                    {customTemplates.map((template) => (
+                      <SelectItem key={template.id} value={`custom_${template.id}`}>
+                        {template.name} (Custom)
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">Create New Custom Template</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-            )}
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-              <div className="flex">
-                <Trash2 className="h-4 w-4 text-yellow-600 mt-0.5 mr-2" />
-                <div className="text-sm">
-                  <p className="text-yellow-800 font-medium">Data Privacy Notice</p>
-                  <p className="text-yellow-700 mt-1">
-                    For privacy and compliance, we recommend keeping the retention period short. 
-                    Medical data will be permanently deleted after the specified period.
+              {selectedTemplate === 'custom' && (
+                <div className="space-y-3">
+                  <Label htmlFor="custom-template" className="text-base font-semibold text-gray-700">Custom Template</Label>
+                  <Textarea
+                    id="custom-template"
+                    placeholder="Enter your custom template instructions for the AI..."
+                    value={customTemplate}
+                    onChange={(e) => {
+                      setCustomTemplate(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    className="min-h-[150px] border-2 border-gray-200 rounded-xl text-base"
+                  />
+                  <p className="text-sm text-gray-500">
+                    This template will guide the AI on how to structure and format your summaries.
                   </p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <Label className="text-base font-semibold text-gray-700">Current Template Preview</Label>
+                <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 p-6 rounded-xl border border-gray-200 text-sm text-gray-700 max-h-48 overflow-y-auto">
+                  {getCurrentTemplateDisplay()}
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <Button 
+                  onClick={confirmTemplateSelection}
+                  disabled={isSaving || !hasUnsavedChanges}
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-full px-6 py-3"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {isSaving ? 'Confirming...' : 'Confirm Template'}
+                </Button>
+                
+                <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      disabled={customTemplates.length >= 5}
+                      className="border-2 border-turquoise/20 text-turquoise hover:bg-turquoise/5 rounded-full px-6 py-3"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Save as Custom ({customTemplates.length}/5)
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="glass-card border-0 shadow-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl">Save Custom Template</DialogTitle>
+                      <DialogDescription className="text-base">
+                        Create a new custom template that you can reuse later.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="template-name">Template Name</Label>
+                        <Input
+                          id="template-name"
+                          placeholder="My Custom Template"
+                          value={newTemplateName}
+                          onChange={(e) => setNewTemplateName(e.target.value)}
+                          className="border-2 border-gray-200 rounded-xl h-12"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="template-content">Template Content</Label>
+                        <Textarea
+                          id="template-content"
+                          placeholder="Enter your template instructions..."
+                          value={newTemplateContent}
+                          onChange={(e) => setNewTemplateContent(e.target.value)}
+                          className="min-h-[120px] border-2 border-gray-200 rounded-xl"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setSaveDialogOpen(false)} className="rounded-full">
+                        Cancel
+                      </Button>
+                      <Button onClick={saveCustomTemplate} className="bg-turquoise hover:bg-turquoise/90 text-white rounded-full">
+                        Save Template
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {customTemplates.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold text-gray-700">Your Custom Templates</Label>
+                  <div className="space-y-2">
+                    {customTemplates.map((template) => (
+                      <div key={template.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-100">
+                        <span className="font-medium text-gray-800">{template.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteCustomTemplate(template.id, template.name)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Data Retention Settings */}
+          <Card className="glass-card border-0 shadow-xl hover-lift">
+            <CardHeader className="bg-gradient-to-r from-purple-100/50 to-pink-100/50 rounded-t-xl">
+              <CardTitle className="flex items-center text-2xl">
+                <div className="p-2 bg-gradient-to-br from-purple-200/50 to-pink-200/50 rounded-xl mr-3">
+                  <Clock className="h-6 w-6 text-purple-600" />
+                </div>
+                Data Retention
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Control how long your summaries and files are stored
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl">
+                <div className="space-y-1">
+                  <Label className="text-base font-semibold text-gray-700">Auto-delete summaries</Label>
+                  <p className="text-sm text-gray-600">
+                    Automatically delete old summaries based on retention period
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.auto_delete_enabled}
+                  onCheckedChange={(checked) => 
+                    setSettings(prev => ({ ...prev, auto_delete_enabled: checked }))
+                  }
+                />
+              </div>
+
+              {settings.auto_delete_enabled && (
+                <div className="space-y-3">
+                  <Label htmlFor="retention-period" className="text-base font-semibold text-gray-700">Retention Period</Label>
+                  <Select 
+                    value={settings.data_retention_days?.toString() || '3'}
+                    onValueChange={(value) => 
+                      setSettings(prev => ({ ...prev, data_retention_days: parseInt(value) }))
+                    }
+                  >
+                    <SelectTrigger className="border-2 border-gray-200 rounded-xl h-12">
+                      <SelectValue placeholder="Select retention period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {retentionOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value.toString()}>
+                          <div className="flex flex-col">
+                            <span>{option.label}</span>
+                            <span className="text-xs text-gray-500">{option.description}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-6">
+                <div className="flex">
+                  <Shield className="h-6 w-6 text-amber-600 mt-1 mr-3" />
+                  <div>
+                    <p className="font-semibold text-amber-800 text-base mb-2">Data Privacy Notice</p>
+                    <p className="text-amber-700">
+                      For privacy and compliance, we recommend keeping the retention period short. 
+                      Medical data will be permanently deleted after the specified period.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Account Settings */}
+        <Card className="glass-card border-0 shadow-xl max-w-4xl mx-auto">
+          <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 rounded-t-xl">
+            <CardTitle className="flex items-center text-2xl">
+              <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-xl mr-3">
+                <User className="h-6 w-6 text-emerald-600" />
+              </div>
+              Account Information
+            </CardTitle>
+            <CardDescription className="text-lg">
+              Your account details and preferences
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label className="text-base font-semibold text-gray-700">Email Address</Label>
+                <Input 
+                  value={user?.email || ''} 
+                  disabled 
+                  className="bg-gradient-to-r from-gray-50 to-blue-50/30 border-2 border-gray-200 rounded-xl h-12"
+                />
+              </div>
+              <div className="space-y-3">
+                <Label className="text-base font-semibold text-gray-700">Account Type</Label>
+                <Input 
+                  value="Healthcare Professional" 
+                  disabled 
+                  className="bg-gradient-to-r from-gray-50 to-blue-50/30 border-2 border-gray-200 rounded-xl h-12"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-8 p-6 bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-xl border border-turquoise/20">
+              <div className="flex items-center space-x-3">
+                <Heart className="h-6 w-6 text-turquoise" />
+                <div>
+                  <p className="font-semibold text-gray-800 text-lg">Thank you for using Liaise!</p>
+                  <p className="text-gray-600">You're helping make healthcare more accessible and understandable for patients.</p>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
-
-      {/* Account Settings */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <SettingsIcon className="h-5 w-5 mr-2" />
-            Account Settings
-          </CardTitle>
-          <CardDescription>
-            General account preferences and information
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Email Address</Label>
-              <Input value={user?.email || ''} disabled className="bg-gray-50" />
-            </div>
-            <div className="space-y-2">
-              <Label>Account Type</Label>
-              <Input value="Healthcare Professional" disabled className="bg-gray-50" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 };
