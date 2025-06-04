@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,12 +22,15 @@ import {
   Shield,
   User,
   Sparkles,
-  Heart
+  Heart,
+  Stethoscope
 } from "lucide-react";
 
 interface UserSettings {
   summary_template: string;
   custom_template: string | null;
+  clinical_notes_template: string;
+  custom_clinical_template: string | null;
   data_retention_days: number;
   auto_delete_enabled: boolean;
 }
@@ -51,19 +53,29 @@ const Settings = () => {
   const [settings, setSettings] = useState<UserSettings>({
     summary_template: 'discharge_summary',
     custom_template: null,
+    clinical_notes_template: 'soap_format',
+    custom_clinical_template: null,
     data_retention_days: 3,
     auto_delete_enabled: true
   });
   const [templatePresets, setTemplatePresets] = useState<TemplatePreset[]>([]);
+  const [clinicalNotesPresets, setClinicalNotesPresets] = useState<TemplatePreset[]>([]);
   const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  const [customClinicalTemplates, setCustomClinicalTemplates] = useState<CustomTemplate[]>([]);
   const [customTemplate, setCustomTemplate] = useState("");
+  const [customClinicalTemplate, setCustomClinicalTemplate] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState("");
+  const [selectedClinicalTemplate, setSelectedClinicalTemplate] = useState("");
   const [newTemplateName, setNewTemplateName] = useState("");
   const [newTemplateContent, setNewTemplateContent] = useState("");
+  const [newClinicalTemplateName, setNewClinicalTemplateName] = useState("");
+  const [newClinicalTemplateContent, setNewClinicalTemplateContent] = useState("");
   const [isCustom, setIsCustom] = useState(false);
+  const [isClinicalCustom, setIsClinicalCustom] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveClinicalDialogOpen, setSaveClinicalDialogOpen] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -100,8 +112,11 @@ const Settings = () => {
       if (data) {
         setSettings(data);
         setSelectedTemplate(data.summary_template);
+        setSelectedClinicalTemplate(data.clinical_notes_template || 'soap_format');
         setIsCustom(data.summary_template === 'custom');
+        setIsClinicalCustom(data.clinical_notes_template === 'custom');
         setCustomTemplate(data.custom_template || '');
+        setCustomClinicalTemplate(data.custom_clinical_template || '');
       }
     } catch (error) {
       console.error('Error loading settings:', error);
@@ -124,7 +139,17 @@ const Settings = () => {
         .order('name');
 
       if (error) throw error;
-      setTemplatePresets(data || []);
+      
+      // Separate summary templates from clinical notes templates
+      const summaryTemplates = (data || []).filter(template => 
+        !template.name.includes('clinical') && !template.name.includes('soap')
+      );
+      const clinicalTemplates = (data || []).filter(template => 
+        template.name.includes('clinical') || template.name.includes('soap')
+      );
+      
+      setTemplatePresets(summaryTemplates);
+      setClinicalNotesPresets(clinicalTemplates);
     } catch (error) {
       console.error('Error loading template presets:', error);
     }
@@ -139,7 +164,17 @@ const Settings = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCustomTemplates(data || []);
+      
+      // Separate summary templates from clinical templates based on name or content
+      const summaryTemplates = (data || []).filter(template => 
+        !template.name.toLowerCase().includes('clinical') && !template.name.toLowerCase().includes('soap')
+      );
+      const clinicalTemplates = (data || []).filter(template => 
+        template.name.toLowerCase().includes('clinical') || template.name.toLowerCase().includes('soap')
+      );
+      
+      setCustomTemplates(summaryTemplates);
+      setCustomClinicalTemplates(clinicalTemplates);
     } catch (error) {
       console.error('Error loading custom templates:', error);
     }
@@ -179,6 +214,46 @@ const Settings = () => {
       toast({
         title: "Error",
         description: "Failed to confirm template selection. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const confirmClinicalTemplateSelection = async () => {
+    if (!user) return;
+
+    setIsSaving(true);
+    try {
+      const settingsToSave = {
+        ...settings,
+        clinical_notes_template: selectedClinicalTemplate,
+        custom_clinical_template: isClinicalCustom ? customClinicalTemplate : null,
+      };
+
+      const { error } = await supabase
+        .from('user_settings')
+        .upsert({
+          user_id: user.id,
+          ...settingsToSave,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      setSettings(settingsToSave);
+      setHasUnsavedChanges(false);
+
+      toast({
+        title: "Clinical Notes Template Confirmed",
+        description: "Your clinical notes template selection has been saved and will be used for new transcriptions.",
+      });
+    } catch (error) {
+      console.error('Error confirming clinical template:', error);
+      toast({
+        title: "Error",
+        description: "Failed to confirm clinical notes template selection. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -276,6 +351,60 @@ const Settings = () => {
     }
   };
 
+  const saveCustomClinicalTemplate = async () => {
+    if (!user || !newClinicalTemplateName.trim() || !newClinicalTemplateContent.trim()) {
+      toast({
+        title: "Invalid Input",
+        description: "Please provide both a name and content for your clinical template.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (customClinicalTemplates.length >= 5) {
+      toast({
+        title: "Template Limit Reached",
+        description: "You can only save up to 5 custom clinical templates. Please delete one first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('user_custom_templates')
+        .insert({
+          user_id: user.id,
+          name: newClinicalTemplateName.trim(),
+          template_content: newClinicalTemplateContent.trim()
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('A template with this name already exists');
+        }
+        throw error;
+      }
+
+      await loadCustomTemplates();
+      setNewClinicalTemplateName("");
+      setNewClinicalTemplateContent("");
+      setSaveClinicalDialogOpen(false);
+
+      toast({
+        title: "Clinical Template Saved",
+        description: `Custom clinical template "${newClinicalTemplateName}" has been saved.`,
+      });
+    } catch (error: any) {
+      console.error('Error saving custom clinical template:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save custom clinical template. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const deleteCustomTemplate = async (templateId: string, templateName: string) => {
     try {
       const { error } = await supabase
@@ -319,6 +448,24 @@ const Settings = () => {
     }
   };
 
+  const handleClinicalTemplateChange = (value: string) => {
+    setSelectedClinicalTemplate(value);
+    setHasUnsavedChanges(true);
+    
+    if (value === 'custom') {
+      setIsClinicalCustom(true);
+    } else if (value.startsWith('custom_')) {
+      setIsClinicalCustom(true);
+      const customTemplateId = value.replace('custom_', '');
+      const template = customClinicalTemplates.find(t => t.id === customTemplateId);
+      if (template) {
+        setCustomClinicalTemplate(template.template_content);
+      }
+    } else {
+      setIsClinicalCustom(false);
+    }
+  };
+
   const getSelectedPreset = () => {
     return templatePresets.find(preset => preset.name === selectedTemplate);
   };
@@ -333,6 +480,19 @@ const Settings = () => {
     } else {
       const preset = getSelectedPreset();
       return preset?.template_content || 'Template not found';
+    }
+  };
+
+  const getCurrentClinicalTemplateDisplay = () => {
+    if (selectedClinicalTemplate === 'custom') {
+      return customClinicalTemplate || 'No custom clinical template content';
+    } else if (selectedClinicalTemplate.startsWith('custom_')) {
+      const customTemplateId = selectedClinicalTemplate.replace('custom_', '');
+      const template = customClinicalTemplates.find(t => t.id === customTemplateId);
+      return template?.template_content || 'Template not found';
+    } else {
+      const preset = clinicalNotesPresets.find(preset => preset.name === selectedClinicalTemplate);
+      return preset?.template_content || 'Default SOAP format will be used';
     }
   };
 
@@ -373,17 +533,17 @@ const Settings = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Template Settings */}
+          {/* Patient Summary Templates */}
           <Card className="glass-card border-0 shadow-xl hover-lift">
             <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
               <CardTitle className="flex items-center text-2xl">
                 <div className="p-2 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-xl mr-3">
                   <Palette className="h-6 w-6 text-turquoise" />
                 </div>
-                Summary Templates
+                Patient Summary Templates
               </CardTitle>
               <CardDescription className="text-lg">
-                Choose how your medical summaries are structured and formatted
+                Choose how your patient summaries are structured and formatted
               </CardDescription>
             </CardHeader>
             <CardContent className="p-8 space-y-6">
@@ -503,6 +663,153 @@ const Settings = () => {
                   <div className="space-y-2">
                     {customTemplates.map((template) => (
                       <div key={template.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-xl border border-gray-100">
+                        <span className="font-medium text-gray-800">{template.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => deleteCustomTemplate(template.id, template.name)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 rounded-full"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Clinical Notes Templates */}
+          <Card className="glass-card border-0 shadow-xl hover-lift">
+            <CardHeader className="bg-gradient-to-r from-emerald-50/80 to-teal-50/80 rounded-t-xl">
+              <CardTitle className="flex items-center text-2xl">
+                <div className="p-2 bg-gradient-to-br from-emerald-100/80 to-teal-100/80 rounded-xl mr-3">
+                  <Stethoscope className="h-6 w-6 text-emerald-600" />
+                </div>
+                Clinical Notes Templates
+              </CardTitle>
+              <CardDescription className="text-lg">
+                Customize the formatting of clinical notes from voice transcriptions
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-8 space-y-6">
+              <div className="space-y-3">
+                <Label htmlFor="clinical-template-select" className="text-base font-semibold text-gray-700">Clinical Notes Format</Label>
+                <Select value={selectedClinicalTemplate} onValueChange={handleClinicalTemplateChange}>
+                  <SelectTrigger className="border-2 border-gray-200 rounded-xl h-12 text-base">
+                    <SelectValue placeholder="Select a clinical notes template" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clinicalNotesPresets.map((preset) => (
+                      <SelectItem key={preset.id} value={preset.name}>
+                        {preset.description}
+                      </SelectItem>
+                    ))}
+                    {customClinicalTemplates.map((template) => (
+                      <SelectItem key={template.id} value={`custom_${template.id}`}>
+                        {template.name} (Custom)
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="custom">Create New Clinical Template</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {selectedClinicalTemplate === 'custom' && (
+                <div className="space-y-3">
+                  <Label htmlFor="custom-clinical-template" className="text-base font-semibold text-gray-700">Custom Clinical Template</Label>
+                  <Textarea
+                    id="custom-clinical-template"
+                    placeholder="Enter your custom clinical notes template instructions for the AI..."
+                    value={customClinicalTemplate}
+                    onChange={(e) => {
+                      setCustomClinicalTemplate(e.target.value);
+                      setHasUnsavedChanges(true);
+                    }}
+                    className="min-h-[150px] border-2 border-gray-200 rounded-xl text-base"
+                  />
+                  <p className="text-sm text-gray-500">
+                    This template will guide the AI on how to structure and format your clinical notes from transcriptions.
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <Label className="text-base font-semibold text-gray-700">Current Clinical Template Preview</Label>
+                <div className="bg-gradient-to-br from-gray-50 to-emerald-50/30 p-6 rounded-xl border border-gray-200 text-sm text-gray-700 max-h-48 overflow-y-auto">
+                  {getCurrentClinicalTemplateDisplay()}
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <Button 
+                  onClick={confirmClinicalTemplateSelection}
+                  disabled={isSaving || !hasUnsavedChanges}
+                  className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-full px-6 py-3"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  {isSaving ? 'Confirming...' : 'Confirm Template'}
+                </Button>
+                
+                <Dialog open={saveClinicalDialogOpen} onOpenChange={setSaveClinicalDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      disabled={customClinicalTemplates.length >= 5}
+                      className="border-2 border-emerald-200 text-emerald-600 hover:bg-emerald-50 rounded-full px-6 py-3"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Save Clinical Template ({customClinicalTemplates.length}/5)
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="glass-card border-0 shadow-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-xl">Save Custom Clinical Template</DialogTitle>
+                      <DialogDescription className="text-base">
+                        Create a new custom clinical notes template that you can reuse later.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="clinical-template-name">Template Name</Label>
+                        <Input
+                          id="clinical-template-name"
+                          placeholder="My Clinical Template"
+                          value={newClinicalTemplateName}
+                          onChange={(e) => setNewClinicalTemplateName(e.target.value)}
+                          className="border-2 border-gray-200 rounded-xl h-12"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="clinical-template-content">Template Content</Label>
+                        <Textarea
+                          id="clinical-template-content"
+                          placeholder="Enter your clinical notes template instructions..."
+                          value={newClinicalTemplateContent}
+                          onChange={(e) => setNewClinicalTemplateContent(e.target.value)}
+                          className="min-h-[120px] border-2 border-gray-200 rounded-xl"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setSaveClinicalDialogOpen(false)} className="rounded-full">
+                        Cancel
+                      </Button>
+                      <Button onClick={saveCustomClinicalTemplate} className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-full">
+                        Save Template
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {customClinicalTemplates.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold text-gray-700">Your Custom Clinical Templates</Label>
+                  <div className="space-y-2">
+                    {customClinicalTemplates.map((template) => (
+                      <div key={template.id} className="flex items-center justify-between p-4 bg-gradient-to-r from-gray-50 to-emerald-50/30 rounded-xl border border-gray-100">
                         <span className="font-medium text-gray-800">{template.name}</span>
                         <Button
                           variant="ghost"
