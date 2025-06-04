@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -370,7 +369,7 @@ const NewSummary = () => {
         <CardContent className="p-4">
           <div className="flex items-center space-x-2">
             <Shield className="h-5 w-5 text-green-600" />
-            <span className="text-green-800 font-medium">HIPAA Compliant & Secure</span>
+            <span className="text-green-800 font-medium">Secure Platform</span>
             <span className="text-green-700">• End-to-end encryption • Data not stored</span>
           </div>
         </CardContent>
