@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -38,10 +37,16 @@ interface DashboardStats {
   unsentDrafts: number;
 }
 
+interface UserProfile {
+  first_name: string | null;
+  full_name: string | null;
+}
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [recentSummaries, setRecentSummaries] = useState<Summary[]>([]);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
     summariesThisMonth: 0,
     summariesLastMonth: 0,
@@ -54,9 +59,41 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (user?.id) {
+      fetchUserProfile();
       fetchSummariesAndStats();
     }
   }, [user?.id]);
+
+  const fetchUserProfile = async () => {
+    if (!user?.id) return;
+
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('first_name, full_name')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return;
+      }
+
+      setUserProfile(profile);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
+  const getDisplayName = () => {
+    if (userProfile?.first_name) {
+      return userProfile.first_name;
+    }
+    if (userProfile?.full_name) {
+      return userProfile.full_name.split(' ')[0];
+    }
+    return user?.email?.split('@')[0] || 'Doctor';
+  };
 
   const fetchSummariesAndStats = async () => {
     if (!user?.id) return;
@@ -221,7 +258,7 @@ const Dashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                Welcome back, {user?.email?.split('@')[0] || 'Doctor'}
+                Welcome back, {getDisplayName()}
               </h1>
               <p className="text-xl text-gray-600">
                 Ready to create clear, patient-friendly summaries?
