@@ -10,6 +10,7 @@ import HowItWorks from "./pages/HowItWorks";
 import Pricing from "./pages/Pricing";
 import FAQs from "./pages/FAQs";
 import About from "./pages/About";
+import Contact from "./pages/Contact";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
 import Feedback from "./pages/Feedback";
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/pricing" element={<Pricing />} />
             <Route path="/faqs" element={<FAQs />} />
             <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />

@@ -2,6 +2,7 @@
 import { Upload, FileText, Mail, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -129,10 +130,12 @@ const HowItWorks = () => {
             Ready to transform how you communicate with patients? Request a personalized demo today.
           </p>
           
-          <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4">
-            Request a Demo
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Button>
+          <Link to="/contact">
+            <Button size="lg" className="bg-blue-600 hover:bg-blue-700 text-lg px-8 py-4">
+              Request a Demo
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Button>
+          </Link>
         </div>
       </section>
 

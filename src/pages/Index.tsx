@@ -259,7 +259,7 @@ const Index = () => {
                   Start Converting Now
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
-                <Link to="/how-it-works">
+                <Link to="/contact">
                   <Button variant="outline" size="lg" className="border-2 border-turquoise/20 text-turquoise hover:bg-turquoise/5 px-8 py-4 rounded-full text-lg transition-all duration-300">
                     See How It Works
                     <Brain className="ml-2 h-5 w-5" />
