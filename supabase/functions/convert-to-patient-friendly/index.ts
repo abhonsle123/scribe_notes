@@ -1,5 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,6 +19,47 @@ serve(async (req) => {
     const apiKey = Deno.env.get('GOOGLE_AI_API_KEY');
     if (!apiKey) {
       throw new Error('Google AI API key not configured');
+    }
+
+    // Get user ID from the authorization header
+    const authHeader = req.headers.get('authorization');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    let userTemplate = null;
+    
+    if (authHeader && supabaseUrl && supabaseKey) {
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      
+      try {
+        // Get user settings and template preferences
+        const { data: userSettings } = await supabase
+          .from('user_settings')
+          .select('summary_template, custom_template')
+          .single();
+
+        if (userSettings) {
+          if (userSettings.summary_template === 'custom' && userSettings.custom_template) {
+            userTemplate = userSettings.custom_template;
+          } else if (userSettings.summary_template) {
+            // Get the preset template
+            const { data: presetTemplate } = await supabase
+              .from('template_presets')
+              .select('template_content')
+              .eq('name', userSettings.summary_template)
+              .eq('is_active', true)
+              .single();
+            
+            if (presetTemplate) {
+              userTemplate = presetTemplate.template_content;
+            }
+          }
+        }
+      } catch (error) {
+        console.log('Could not fetch user template preferences, using default:', error);
+      }
     }
 
     let fileUri = null;
@@ -95,7 +137,8 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = `You are a medical communication specialist tasked with converting complex medical discharge summaries into patient-friendly language. Your goal is to make medical information accessible while preserving all critical details.
+    // Use user's custom template or fall back to default
+    const systemPrompt = userTemplate || `You are a medical communication specialist tasked with converting complex medical discharge summaries into patient-friendly language. Your goal is to make medical information accessible while preserving all critical details.
 
 IMPORTANT: Your response must have TWO distinct sections:
 
@@ -125,9 +168,9 @@ STRUCTURE YOUR PATIENT-FRIENDLY SUMMARY WITH THESE SECTIONS:
 5. **What you need to do at home:** Clear care instructions
 6. **Important medicines to take:** List with purposes
 7. **When to come back:** Follow-up instructions
-8. **Emergency signs:** When to seek immediate help
+8. **Emergency signs:** When to seek immediate help`;
 
-Additional context from medical team: ${notes || 'None provided'}`;
+    const finalPrompt = notes ? `${systemPrompt}\n\nAdditional context from medical team: ${notes}` : systemPrompt;
 
     // Prepare the request body
     const requestBody: any = {
@@ -144,7 +187,7 @@ Additional context from medical team: ${notes || 'None provided'}`;
 
     // Add the system prompt
     requestBody.contents[0].parts.push({
-      text: systemPrompt
+      text: finalPrompt
     });
 
     // Add file reference if we have one, otherwise use text content
