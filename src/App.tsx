@@ -11,6 +11,7 @@ import FAQs from "./pages/FAQs";
 import About from "./pages/About";
 import Login from "./pages/Login";
 import NotFound from "./pages/NotFound";
+import Feedback from "./pages/Feedback";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import NewSummary from "./pages/NewSummary";
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/faqs" element={<FAQs />} />
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/feedback" element={<Feedback />} />
             
             {/* Protected Dashboard Routes */}
             <Route path="/dashboard" element={
