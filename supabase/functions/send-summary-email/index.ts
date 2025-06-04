@@ -25,6 +25,14 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    console.log('send-summary-email function called');
+
+    // Check if RESEND_API_KEY is available
+    if (!Deno.env.get("RESEND_API_KEY")) {
+      console.error('RESEND_API_KEY is not set');
+      throw new Error('Email service not configured. Please contact support.');
+    }
+
     // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -37,6 +45,21 @@ const handler = async (req: Request): Promise<Response> => {
     )
 
     const { summaryId, patientEmail, patientName, summaryContent }: SendSummaryEmailRequest = await req.json();
+
+    console.log('Request data:', { summaryId, patientEmail, patientName: patientName ? 'Present' : 'Missing' });
+
+    // Validate required fields
+    if (!summaryId || !patientEmail || !patientName || !summaryContent) {
+      console.error('Missing required fields:', { summaryId: !!summaryId, patientEmail: !!patientEmail, patientName: !!patientName, summaryContent: !!summaryContent });
+      throw new Error('Missing required fields');
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(patientEmail)) {
+      console.error('Invalid email format:', patientEmail);
+      throw new Error('Invalid email format');
+    }
 
     console.log('Sending summary email to:', patientEmail);
 
@@ -90,13 +113,21 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("Resend API response:", emailResponse);
 
     // Check if email sending failed
     if (emailResponse.error) {
       console.error("Resend API error:", emailResponse.error);
       throw new Error(`Email sending failed: ${emailResponse.error.message}`);
     }
+
+    // Ensure we have a successful response
+    if (!emailResponse.data || !emailResponse.data.id) {
+      console.error("No email ID in response:", emailResponse);
+      throw new Error('Email sending failed: No confirmation received');
+    }
+
+    console.log("Email sent successfully with ID:", emailResponse.data.id);
 
     // Update the summary record to mark it as sent
     const { error: updateError } = await supabaseClient
@@ -109,12 +140,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (updateError) {
       console.error('Error updating summary record:', updateError);
-      // Don't fail the request if updating the record fails
+      // Don't fail the request if updating the record fails, email was sent successfully
+    } else {
+      console.log('Summary record updated successfully');
     }
 
     return new Response(JSON.stringify({ 
       success: true, 
-      emailId: emailResponse.data?.id 
+      emailId: emailResponse.data.id,
+      message: 'Email sent successfully'
     }), {
       status: 200,
       headers: {
@@ -122,13 +156,22 @@ const handler = async (req: Request): Promise<Response> => {
         ...corsHeaders,
       },
     });
+
   } catch (error: any) {
     console.error("Error in send-summary-email function:", error);
+    
+    // Return a proper error response
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        error: error.message || 'An unexpected error occurred',
+        success: false 
+      }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { 
+          "Content-Type": "application/json", 
+          ...corsHeaders 
+        },
       }
     );
   }
