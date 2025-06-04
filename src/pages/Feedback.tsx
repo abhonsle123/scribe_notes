@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -107,28 +106,52 @@ const Feedback = () => {
     setIsSubmitting(true);
 
     try {
-      // Prepare the feedback data, ensuring we don't include user_id
+      // Prepare the feedback data with proper null handling
       const feedbackData = {
         session_id: sessionId,
-        summary_id: summaryId || null,
+        summary_id: summaryId && summaryId !== 'null' ? summaryId : null,
         overall_rating: responses.overallSatisfaction > 0 ? responses.overallSatisfaction : null,
         clarity_rating: responses.readabilityRating > 0 ? responses.readabilityRating : null,
         usefulness_rating: responses.usefulnessRating > 0 ? responses.usefulnessRating : null,
         accuracy_rating: responses.accuracyRating > 0 ? responses.accuracyRating : null,
         recommendation_rating: responses.chatboxExperience > 0 ? responses.chatboxExperience : null,
-        open_feedback: openFeedback.trim() || null
+        open_feedback: openFeedback.trim() || null,
+        user_id: null // Explicitly set to null for anonymous feedback
       };
 
       console.log('Submitting feedback data:', feedbackData);
 
-      const { error } = await supabase
+      // First, let's test if we can connect to the database
+      const { data: testData, error: testError } = await supabase
         .from('feedback')
-        .insert(feedbackData);
+        .select('id')
+        .limit(1);
+
+      if (testError) {
+        console.error('Database connection test failed:', testError);
+        throw new Error('Database connection failed');
+      }
+
+      console.log('Database connection test successful');
+
+      // Now try to insert the feedback
+      const { data, error } = await supabase
+        .from('feedback')
+        .insert(feedbackData)
+        .select();
 
       if (error) {
-        console.error('Supabase error:', error);
+        console.error('Supabase insertion error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         throw error;
       }
+
+      console.log('Feedback inserted successfully:', data);
 
       setIsSubmitted(true);
       toast({
@@ -138,9 +161,23 @@ const Feedback = () => {
 
     } catch (error) {
       console.error('Error submitting feedback:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = "There was an error submitting your feedback. Please try again.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes('permission denied') || error.message.includes('RLS')) {
+          errorMessage = "Permission denied. Please check if the feedback system is properly configured.";
+        } else if (error.message.includes('connection')) {
+          errorMessage = "Database connection failed. Please check your internet connection and try again.";
+        } else if (error.message.includes('validation')) {
+          errorMessage = "Invalid data provided. Please check your responses and try again.";
+        }
+      }
+      
       toast({
         title: "Submission Failed",
-        description: "There was an error submitting your feedback. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
