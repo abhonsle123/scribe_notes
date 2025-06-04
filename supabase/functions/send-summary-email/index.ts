@@ -40,9 +40,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Sending summary email to:', patientEmail);
 
+    // Use a more flexible from address - you'll need to verify a domain or sender email in Resend
+    const fromAddress = Deno.env.get('RESEND_FROM_EMAIL') || "noreply@yourdomain.com";
+
     // Send email using Resend
     const emailResponse = await resend.emails.send({
-      from: "Liaise <onboarding@resend.dev>",
+      from: `Liaise Health <${fromAddress}>`,
       to: [patientEmail],
       subject: "Your Visit Summary from Liaise",
       html: `
@@ -91,6 +94,12 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log("Email sent successfully:", emailResponse);
+
+    // Check if email sending failed due to domain verification
+    if (emailResponse.error) {
+      console.error("Resend API error:", emailResponse.error);
+      throw new Error(`Email sending failed: ${emailResponse.error.message}`);
+    }
 
     // Update the summary record to mark it as sent
     const { error: updateError } = await supabaseClient

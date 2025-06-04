@@ -48,9 +48,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Generated feedback URL:', feedbackUrl);
 
+    // Use a more flexible from address - you'll need to verify a domain or sender email in Resend
+    const fromAddress = Deno.env.get('RESEND_FROM_EMAIL') || "noreply@yourdomain.com";
+
     // Send follow-up email using Resend
     const emailResponse = await resend.emails.send({
-      from: "Liaise <onboarding@resend.dev>",
+      from: `Liaise Health <${fromAddress}>`,
       to: [patientEmail],
       subject: "How was your experience with Liaise? We'd love your feedback!",
       html: `
@@ -113,6 +116,12 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     console.log("Follow-up email sent successfully:", emailResponse);
+
+    // Check if email sending failed due to domain verification
+    if (emailResponse.error) {
+      console.error("Resend API error:", emailResponse.error);
+      throw new Error(`Email sending failed: ${emailResponse.error.message}`);
+    }
 
     // Update the summary record to mark follow-up as sent
     const { error: updateError } = await supabaseClient
