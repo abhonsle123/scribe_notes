@@ -72,7 +72,7 @@ const Index = () => {
   }, [hasAnimated, loading]);
 
   const animateNumbers = () => {
-    const duration = 2000; // 2 seconds
+    const duration = 600; // Reduced from 2000ms to 600ms (70% faster)
     const frameRate = 60;
     const totalFrames = (duration / 1000) * frameRate;
     let frame = 0;
@@ -221,7 +221,7 @@ const Index = () => {
       <Header />
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden py-20 lg:py-32">
+      <section className="relative overflow-hidden py-20 lg:py-32 animate-fade-in-up">
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-8">
@@ -292,7 +292,7 @@ const Index = () => {
       </section>
 
       {/* Real Impact Section */}
-      <section ref={statsRef} className="py-20 bg-white/50 backdrop-blur-sm">
+      <section ref={statsRef} className="py-20 bg-white/50 backdrop-blur-sm animate-fade-in-up">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
@@ -321,7 +321,7 @@ const Index = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20">
+      <section className="py-20 animate-fade-in-up">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
@@ -353,7 +353,7 @@ const Index = () => {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 bg-gradient-to-r from-turquoise/5 to-sky-blue/5">
+      <section className="py-20 bg-gradient-to-r from-turquoise/5 to-sky-blue/5 animate-fade-in-up">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
@@ -388,7 +388,7 @@ const Index = () => {
       </section>
 
       {/* Trust Indicators Section */}
-      <section className="py-20">
+      <section className="py-20 animate-fade-in-up">
         <div className="container mx-auto px-6">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-800 to-turquoise bg-clip-text text-transparent mb-6">
@@ -416,7 +416,7 @@ const Index = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20 bg-gradient-to-r from-turquoise via-sky-blue to-lavender">
+      <section className="py-20 bg-gradient-to-r from-turquoise via-sky-blue to-lavender animate-fade-in-up">
         <div className="container mx-auto px-6 text-center">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
