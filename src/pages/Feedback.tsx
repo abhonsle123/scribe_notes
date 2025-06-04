@@ -6,19 +6,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Star, Heart, CheckCircle, Smile, Meh, Frown } from "lucide-react";
+import { Star, Heart, CheckCircle, Frown } from "lucide-react";
 
 const Feedback = () => {
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session');
   const summaryId = searchParams.get('summary');
   
-  const [ratings, setRatings] = useState({
-    overall: 0,
-    clarity: 0,
-    usefulness: 0,
-    accuracy: 0,
-    recommendation: 0
+  const [responses, setResponses] = useState({
+    usedChatbox: null as boolean | null,
+    chatboxExperience: 0,
+    readabilityRating: 0,
+    usefulnessRating: 0,
+    accuracyRating: 0,
+    overallSatisfaction: 0
   });
   
   const [openFeedback, setOpenFeedback] = useState("");
@@ -39,16 +40,18 @@ const Feedback = () => {
   const StarRating = ({ 
     rating, 
     onRatingChange, 
-    label 
+    label,
+    maxRating = 5
   }: { 
     rating: number; 
     onRatingChange: (rating: number) => void; 
     label: string;
+    maxRating?: number;
   }) => (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <label className="text-sm font-medium text-gray-700">{label}</label>
       <div className="flex space-x-1">
-        {[1, 2, 3, 4, 5].map((star) => (
+        {Array.from({ length: maxRating }, (_, i) => i + 1).map((star) => (
           <button
             key={star}
             type="button"
@@ -65,57 +68,12 @@ const Feedback = () => {
           </button>
         ))}
       </div>
+      <div className="text-xs text-gray-500 flex justify-between">
+        <span>1 = {maxRating === 10 ? 'Very dissatisfied' : maxRating === 5 && label.includes('experience') ? 'Very poor' : maxRating === 5 && label.includes('easy') ? 'Very difficult' : maxRating === 5 && label.includes('useful') ? 'Not useful at all' : 'Not accurate at all'}</span>
+        <span>{maxRating} = {maxRating === 10 ? 'Very satisfied' : maxRating === 5 && label.includes('experience') ? 'Excellent' : maxRating === 5 && label.includes('easy') ? 'Very easy' : maxRating === 5 && label.includes('useful') ? 'Extremely useful' : 'Very accurate'}</span>
+      </div>
     </div>
   );
-
-  const EmojiRating = ({ 
-    rating, 
-    onRatingChange, 
-    label 
-  }: { 
-    rating: number; 
-    onRatingChange: (rating: number) => void; 
-    label: string;
-  }) => {
-    const emojis = [
-      { icon: Frown, color: "text-red-500", bg: "bg-red-50", label: "Poor" },
-      { icon: Frown, color: "text-orange-500", bg: "bg-orange-50", label: "Fair" },
-      { icon: Meh, color: "text-yellow-500", bg: "bg-yellow-50", label: "Good" },
-      { icon: Smile, color: "text-green-500", bg: "bg-green-50", label: "Very Good" },
-      { icon: Smile, color: "text-blue-500", bg: "bg-blue-50", label: "Excellent" }
-    ];
-
-    return (
-      <div className="space-y-3">
-        <label className="text-sm font-medium text-gray-700">{label}</label>
-        <div className="flex justify-between space-x-2">
-          {emojis.map((emoji, index) => {
-            const IconComponent = emoji.icon;
-            const ratingValue = index + 1;
-            const isSelected = rating === ratingValue;
-            
-            return (
-              <button
-                key={ratingValue}
-                type="button"
-                onClick={() => onRatingChange(ratingValue)}
-                className={`flex flex-col items-center p-3 rounded-lg border-2 transition-all ${
-                  isSelected
-                    ? `${emoji.bg} border-current ${emoji.color} shadow-md scale-105`
-                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                }`}
-              >
-                <IconComponent className={`h-6 w-6 ${isSelected ? emoji.color : "text-gray-400"}`} />
-                <span className={`text-xs mt-1 ${isSelected ? emoji.color : "text-gray-500"}`}>
-                  {emoji.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,12 +87,18 @@ const Feedback = () => {
       return;
     }
 
-    // Check if at least one rating is provided
-    const hasRating = Object.values(ratings).some(rating => rating > 0);
-    if (!hasRating && !openFeedback.trim()) {
+    // Check if at least some feedback is provided
+    const hasResponses = responses.usedChatbox !== null || 
+                        responses.readabilityRating > 0 || 
+                        responses.usefulnessRating > 0 || 
+                        responses.accuracyRating > 0 || 
+                        responses.overallSatisfaction > 0 || 
+                        openFeedback.trim();
+    
+    if (!hasResponses) {
       toast({
         title: "Please Provide Feedback",
-        description: "Please provide at least one rating or written feedback.",
+        description: "Please answer at least one question or provide written feedback.",
         variant: "destructive"
       });
       return;
@@ -148,11 +112,11 @@ const Feedback = () => {
         .insert({
           session_id: sessionId,
           summary_id: summaryId,
-          overall_rating: ratings.overall || null,
-          clarity_rating: ratings.clarity || null,
-          usefulness_rating: ratings.usefulness || null,
-          accuracy_rating: ratings.accuracy || null,
-          recommendation_rating: ratings.recommendation || null,
+          overall_rating: responses.overallSatisfaction || null,
+          clarity_rating: responses.readabilityRating || null,
+          usefulness_rating: responses.usefulnessRating || null,
+          accuracy_rating: responses.accuracyRating || null,
+          recommendation_rating: responses.chatboxExperience || null,
           open_feedback: openFeedback.trim() || null
         });
 
@@ -235,53 +199,91 @@ const Feedback = () => {
               Rate Your Experience
             </CardTitle>
             <CardDescription>
-              Please rate different aspects of your medical summary experience
+              Please answer the following questions about your Liaise experience
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-8">
-              {/* Overall Experience */}
-              <StarRating
-                rating={ratings.overall}
-                onRatingChange={(rating) => setRatings(prev => ({ ...prev, overall: rating }))}
-                label="Overall, how would you rate your experience with Liaise?"
-              />
+              {/* Chatbox Usage */}
+              <div className="space-y-3">
+                <label className="text-sm font-medium text-gray-700">
+                  Did you use the AI chatbox to ask questions or get clarification?
+                </label>
+                <div className="flex space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => setResponses(prev => ({ ...prev, usedChatbox: true }))}
+                    className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                      responses.usedChatbox === true
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    Yes
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResponses(prev => ({ ...prev, usedChatbox: false, chatboxExperience: 0 }))}
+                    className={`px-4 py-2 rounded-lg border-2 transition-all ${
+                      responses.usedChatbox === false
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
 
-              {/* Clarity */}
-              <EmojiRating
-                rating={ratings.clarity}
-                onRatingChange={(rating) => setRatings(prev => ({ ...prev, clarity: rating }))}
-                label="How clear and easy to understand was your summary?"
+              {/* Chatbox Experience Rating - only show if they used it */}
+              {responses.usedChatbox === true && (
+                <StarRating
+                  rating={responses.chatboxExperience}
+                  onRatingChange={(rating) => setResponses(prev => ({ ...prev, chatboxExperience: rating }))}
+                  label="If yes, how would you rate your experience with it?"
+                  maxRating={5}
+                />
+              )}
+
+              {/* Readability */}
+              <StarRating
+                rating={responses.readabilityRating}
+                onRatingChange={(rating) => setResponses(prev => ({ ...prev, readabilityRating: rating }))}
+                label="How easy was it to read and understand your AI-generated summary?"
+                maxRating={5}
               />
 
               {/* Usefulness */}
               <StarRating
-                rating={ratings.usefulness}
-                onRatingChange={(rating) => setRatings(prev => ({ ...prev, usefulness: rating }))}
-                label="How useful was the information provided?"
+                rating={responses.usefulnessRating}
+                onRatingChange={(rating) => setResponses(prev => ({ ...prev, usefulnessRating: rating }))}
+                label="How useful was the information provided in your summary?"
+                maxRating={5}
               />
 
               {/* Accuracy */}
-              <EmojiRating
-                rating={ratings.accuracy}
-                onRatingChange={(rating) => setRatings(prev => ({ ...prev, accuracy: rating }))}
-                label="How accurate did the summary seem compared to your visit?"
-              />
-
-              {/* Recommendation */}
               <StarRating
-                rating={ratings.recommendation}
-                onRatingChange={(rating) => setRatings(prev => ({ ...prev, recommendation: rating }))}
-                label="How likely are you to recommend Liaise to others?"
+                rating={responses.accuracyRating}
+                onRatingChange={(rating) => setResponses(prev => ({ ...prev, accuracyRating: rating }))}
+                label="How accurate did the summary feel when compared to your actual medical visit?"
+                maxRating={5}
               />
 
-              {/* Open feedback */}
+              {/* Overall Satisfaction */}
+              <StarRating
+                rating={responses.overallSatisfaction}
+                onRatingChange={(rating) => setResponses(prev => ({ ...prev, overallSatisfaction: rating }))}
+                label="How satisfied are you overall with your Liaise experience?"
+                maxRating={10}
+              />
+
+              {/* Additional Comments */}
               <div className="space-y-2">
                 <label className="text-sm font-medium text-gray-700">
                   Additional Comments (Optional)
                 </label>
                 <Textarea
-                  placeholder="Tell us more about your experience or suggest improvements..."
+                  placeholder="Share any additional thoughts or suggestions..."
                   value={openFeedback}
                   onChange={(e) => setOpenFeedback(e.target.value)}
                   className="min-h-[100px]"
