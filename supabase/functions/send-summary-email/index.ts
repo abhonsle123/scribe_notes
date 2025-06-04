@@ -63,9 +63,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Sending summary email to:', patientEmail);
 
-    // Send email using Resend - use onboarding@resend.dev as fallback
+    // Send email using Resend with your verified domain
     const emailResponse = await resend.emails.send({
-      from: `Liaise Health <onboarding@resend.dev>`,
+      from: `Liaise Health <noreply@liaise.app>`,
       to: [patientEmail],
       subject: "Your Visit Summary from Liaise",
       html: `
