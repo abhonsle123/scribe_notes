@@ -125,6 +125,10 @@ export const EmailSummaryForm = ({
     }
   };
 
+  const handleFollowUpChange = (checked: boolean | "indeterminate") => {
+    setSendFollowUp(checked === true);
+  };
+
   if (emailSent) {
     return (
       <Card className="border-green-200 bg-green-50">
@@ -186,7 +190,7 @@ export const EmailSummaryForm = ({
           <Checkbox
             id="send-follow-up"
             checked={sendFollowUp}
-            onCheckedChange={setSendFollowUp}
+            onCheckedChange={handleFollowUpChange}
             disabled={isSending}
           />
           <Label htmlFor="send-follow-up" className="text-sm">
