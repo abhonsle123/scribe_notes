@@ -42,40 +42,50 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email using Resend
     const emailResponse = await resend.emails.send({
-      from: "Medical Summary <onboarding@resend.dev>",
+      from: "Liaise <onboarding@resend.dev>",
       to: [patientEmail],
-      subject: "Your Medical Summary",
+      subject: "Your Visit Summary from Liaise",
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #333; border-bottom: 2px solid #4F46E5; padding-bottom: 10px;">Your Medical Summary</h1>
-          
-          <p style="color: #666; margin-bottom: 20px;">Dear ${patientName},</p>
-          
-          <p style="color: #666; margin-bottom: 20px;">
-            Please find your medical summary below. This has been written in easy-to-understand language 
-            to help you better understand your recent medical care.
-          </p>
-          
-          <div style="background-color: #f8f9fa; border-left: 4px solid #4F46E5; padding: 20px; margin: 20px 0;">
-            <div style="white-space: pre-line; color: #333; line-height: 1.6;">
-              ${summaryContent}
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+          <div style="background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <p style="color: #333; font-size: 16px; margin-bottom: 20px; line-height: 1.5;">
+              Hi ${patientName},
+            </p>
+            
+            <p style="color: #333; font-size: 16px; margin-bottom: 25px; line-height: 1.5;">
+              Thank you for visiting your care provider. Below is a simplified summary of your recent medical visit, created by Liaise to help you and your loved ones better understand what happened and what to do next.
+            </p>
+            
+            <h2 style="color: #2563eb; font-size: 18px; margin-bottom: 20px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px;">
+              📄 Summary of Your Visit:
+            </h2>
+            
+            <div style="background-color: #f8fafc; border-left: 4px solid #2563eb; padding: 20px; margin: 20px 0; border-radius: 4px;">
+              <div style="white-space: pre-line; color: #374151; line-height: 1.6; font-size: 15px;">
+                ${summaryContent}
+              </div>
+            </div>
+            
+            <p style="color: #333; font-size: 16px; margin-top: 30px; line-height: 1.5;">
+              If you have any questions or need further clarification, we recommend reaching out to your healthcare provider directly.
+            </p>
+            
+            <p style="color: #333; font-size: 16px; margin-top: 25px; margin-bottom: 30px; line-height: 1.5;">
+              Stay well,<br>
+              <strong>The Liaise Team</strong>
+            </p>
+            
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            
+            <div style="text-align: center;">
+              <p style="color: #6b7280; font-size: 12px; margin-bottom: 5px;">
+                This message was sent securely via Liaise.
+              </p>
+              <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                © 2025 Liaise Health • All rights reserved
+              </p>
             </div>
           </div>
-          
-          <p style="color: #666; margin-top: 30px;">
-            If you have any questions about this summary, please don't hesitate to contact your healthcare provider.
-          </p>
-          
-          <p style="color: #666; margin-top: 20px;">
-            Best regards,<br>
-            Your Healthcare Team
-          </p>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          <p style="color: #999; font-size: 12px;">
-            This summary was generated using AI technology to convert medical language into patient-friendly terms.
-            Please contact your healthcare provider if you need clarification on any medical information.
-          </p>
         </div>
       `,
     });
