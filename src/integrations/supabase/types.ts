@@ -36,12 +36,51 @@ export type Database = {
         }
         Relationships: []
       }
+      summaries: {
+        Row: {
+          created_at: string
+          id: string
+          original_filename: string
+          patient_email: string | null
+          patient_name: string
+          sent_at: string | null
+          summary_content: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          original_filename: string
+          patient_email?: string | null
+          patient_name: string
+          sent_at?: string | null
+          summary_content: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          original_filename?: string
+          patient_email?: string | null
+          patient_name?: string
+          sent_at?: string | null
+          summary_content?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      delete_old_summaries: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

@@ -15,6 +15,7 @@ import NotFound from "./pages/NotFound";
 import DashboardLayout from "./components/DashboardLayout";
 import Dashboard from "./pages/Dashboard";
 import NewSummary from "./pages/NewSummary";
+import PastSummaries from "./pages/PastSummaries";
 
 const queryClient = new QueryClient();
 
@@ -58,7 +59,7 @@ const App = () => (
             }>
               <Route index element={<Dashboard />} />
               <Route path="new-summary" element={<NewSummary />} />
-              <Route path="summaries" element={<div>Past Summaries - Coming Soon</div>} />
+              <Route path="summaries" element={<PastSummaries />} />
               <Route path="team" element={<div>Team - Coming Soon</div>} />
               <Route path="settings" element={<div>Settings - Coming Soon</div>} />
               <Route path="support" element={<div>Support - Coming Soon</div>} />

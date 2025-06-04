@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { extractTextFromFile, validateFileForProcessing } from "@/utils/fileProcessor";
 import {
   Upload,
@@ -28,7 +29,9 @@ const NewSummary = () => {
   const [isProcessed, setIsProcessed] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const [generatedSummary, setGeneratedSummary] = useState("");
+  const [summaryId, setSummaryId] = useState<string | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -91,6 +94,41 @@ const NewSummary = () => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const saveSummaryToDatabase = async (summaryContent: string) => {
+    try {
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Extract patient name from the first file name or use a default
+      const patientName = files[0]?.name.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") || "Unknown Patient";
+
+      const { data, error } = await supabase
+        .from('summaries')
+        .insert({
+          user_id: user.id,
+          patient_name: patientName,
+          original_filename: files.map(f => f.name).join(', '),
+          summary_content: summaryContent,
+          patient_email: null, // Will be updated when sent
+          sent_at: null
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error saving summary:', error);
+        throw error;
+      }
+
+      setSummaryId(data.id);
+      console.log('Summary saved successfully:', data.id);
+    } catch (error) {
+      console.error('Failed to save summary:', error);
+      // Don't show error to user as this is background functionality
+    }
   };
 
   const handleGenerateSummary = async () => {
@@ -199,6 +237,9 @@ const NewSummary = () => {
       setGeneratedSummary(data.summary);
       setIsProcessed(true);
 
+      // Save summary to database
+      await saveSummaryToDatabase(data.summary);
+
       toast({
         title: "Summary Generated Successfully",
         description: "Your patient-friendly summary is ready for review.",
@@ -258,6 +299,7 @@ const NewSummary = () => {
                     onClick={() => {
                       setIsProcessed(false);
                       setGeneratedSummary("");
+                      setSummaryId(null);
                     }}
                   >
                     <Edit className="h-4 w-4 mr-2" />
@@ -316,6 +358,12 @@ const NewSummary = () => {
                   <span className="text-gray-600">Status:</span>
                   <Badge className="bg-green-100 text-green-700 text-xs">Ready</Badge>
                 </div>
+                {summaryId && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Saved:</span>
+                    <Badge className="bg-blue-100 text-blue-700 text-xs">Database</Badge>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
