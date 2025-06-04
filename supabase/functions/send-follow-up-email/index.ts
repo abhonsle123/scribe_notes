@@ -71,9 +71,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Generated feedback URL:', feedbackUrl);
 
-    // Send follow-up email using Resend with the correct default sender
+    // Send follow-up email using Resend with your verified domain
     const emailResponse = await resend.emails.send({
-      from: "Liaise Health <onboarding@resend.dev>",
+      from: "Liaise Health <noreply@liaise.health>",
       to: [patientEmail],
       subject: "How was your experience with Liaise? We'd love your feedback!",
       html: `
