@@ -38,6 +38,7 @@ interface DashboardStats {
 }
 
 interface UserProfile {
+  first_name: string | null;
   full_name: string | null;
 }
 
@@ -69,7 +70,7 @@ const Dashboard = () => {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('full_name')
+        .select('first_name, full_name')
         .eq('id', user.id)
         .single();
 
@@ -85,6 +86,9 @@ const Dashboard = () => {
   };
 
   const getDisplayName = () => {
+    if (userProfile?.first_name) {
+      return userProfile.first_name;
+    }
     if (userProfile?.full_name) {
       return userProfile.full_name.split(' ')[0];
     }
