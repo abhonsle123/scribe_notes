@@ -48,12 +48,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Generated feedback URL:', feedbackUrl);
 
-    // Use a more flexible from address - you'll need to verify a domain or sender email in Resend
-    const fromAddress = Deno.env.get('RESEND_FROM_EMAIL') || "noreply@yourdomain.com";
-
-    // Send follow-up email using Resend
+    // Send follow-up email using Resend with verified domain
     const emailResponse = await resend.emails.send({
-      from: `Liaise Health <${fromAddress}>`,
+      from: "Liaise Health <onboarding@resend.dev>",
       to: [patientEmail],
       subject: "How was your experience with Liaise? We'd love your feedback!",
       html: `
@@ -84,10 +81,11 @@ const handler = async (req: Request): Promise<Response> => {
             <div style="background-color: #fafafa; padding: 20px; border-radius: 8px; margin: 25px 0;">
               <h4 style="color: #333; margin: 0 0 10px 0;">What we'll ask you:</h4>
               <ul style="color: #666; margin: 0; padding-left: 20px; line-height: 1.6;">
-                <li>How clear was your summary?</li>
+                <li>Did you use the AI chatbox?</li>
+                <li>How easy was your summary to read?</li>
                 <li>How useful was the information?</li>
                 <li>How accurate did it seem?</li>
-                <li>Would you recommend Liaise to others?</li>
+                <li>Overall satisfaction with Liaise</li>
               </ul>
             </div>
             
@@ -117,7 +115,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Follow-up email sent successfully:", emailResponse);
 
-    // Check if email sending failed due to domain verification
+    // Check if email sending failed
     if (emailResponse.error) {
       console.error("Resend API error:", emailResponse.error);
       throw new Error(`Email sending failed: ${emailResponse.error.message}`);
