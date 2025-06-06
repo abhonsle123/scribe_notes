@@ -1,13 +1,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { FileText, Menu, X, LogOut } from "lucide-react";
+import { FileText, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserButton } from "@clerk/clerk-react";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
 
   const navigation = [
     ...(user ? [{ name: "Dashboard", href: "/dashboard" }] : []),
@@ -16,10 +17,6 @@ const Header = () => {
     { name: "FAQs", href: "/faqs" },
     { name: "About", href: "/about" },
   ];
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
 
   return (
     <header className="bg-white shadow-sm border-b sticky top-0 z-50">
@@ -56,15 +53,14 @@ const Header = () => {
                     Contact us
                   </Button>
                 </Link>
-                <Button 
-                  onClick={handleSignOut}
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center space-x-2"
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Sign Out</span>
-                </Button>
+                <UserButton 
+                  afterSignOutUrl="/"
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-8 h-8"
+                    }
+                  }}
+                />
               </div>
             ) : (
               <Link to="/login">
@@ -113,15 +109,16 @@ const Header = () => {
                       Contact us
                     </Button>
                   </Link>
-                  <Button 
-                    onClick={handleSignOut}
-                    variant="outline"
-                    size="sm"
-                    className="w-full flex items-center justify-center space-x-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Sign Out</span>
-                  </Button>
+                  <div className="flex justify-center pt-2">
+                    <UserButton 
+                      afterSignOutUrl="/"
+                      appearance={{
+                        elements: {
+                          avatarBox: "w-8 h-8"
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="px-3 py-2">

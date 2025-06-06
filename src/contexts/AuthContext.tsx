@@ -1,16 +1,12 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import React, { createContext, useContext } from 'react';
+import { useUser, useAuth as useClerkAuth } from '@clerk/clerk-react';
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: any;
+  session: any;
   loading: boolean;
-  signUp: (email: string, password: string, firstName: string, lastName: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: any }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,96 +20,18 @@ export const useAuth = () => {
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
-      }
-    );
-
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (mounted) {
-          setSession(session);
-          setUser(session?.user ?? null);
-          setLoading(false);
-        }
-      } catch (error) {
-        console.error('Error getting initial session:', error);
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    getInitialSession();
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          first_name: firstName,
-          last_name: lastName,
-          full_name: `${firstName} ${lastName}`,
-        }
-      }
-    });
-    return { error };
-  };
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
-  };
+  const { user, isLoaded } = useUser();
+  const { signOut: clerkSignOut } = useClerkAuth();
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-  };
-
-  const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/reset-password`;
-    
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl,
-    });
-    return { error };
+    await clerkSignOut();
   };
 
   const value = {
-    user,
-    session,
-    loading,
-    signUp,
-    signIn,
+    user: user,
+    session: user ? { user } : null,
+    loading: !isLoaded,
     signOut,
-    resetPassword,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
