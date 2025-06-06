@@ -1,13 +1,10 @@
 
 import React, { useEffect } from 'react';
-import { SignIn, SignUp, useUser } from '@clerk/clerk-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SignIn, useUser } from '@clerk/clerk-react';
 import { FileText } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
 
 const Login = () => {
-  const [mode, setMode] = React.useState<'login' | 'signup'>('login');
   const { user } = useUser();
   const navigate = useNavigate();
 
@@ -33,65 +30,20 @@ const Login = () => {
         </div>
 
         <div className="flex justify-center">
-          {mode === 'login' ? (
-            <SignIn 
-              fallbackRedirectUrl="/dashboard"
-              appearance={{
-                elements: {
-                  rootBox: "w-full",
-                  card: "shadow-lg border-0 rounded-lg",
-                  headerTitle: "text-2xl font-semibold",
-                  headerSubtitle: "text-gray-600",
-                  socialButtonsBlockButton: "border border-gray-300 hover:bg-gray-50",
-                  formButtonPrimary: "bg-blue-600 hover:bg-blue-700",
-                  footerActionLink: "text-blue-600 hover:text-blue-800"
-                }
-              }}
-            />
-          ) : (
-            <SignUp 
-              fallbackRedirectUrl="/dashboard"
-              appearance={{
-                elements: {
-                  rootBox: "w-full",
-                  card: "shadow-lg border-0 rounded-lg",
-                  headerTitle: "text-2xl font-semibold",
-                  headerSubtitle: "text-gray-600",
-                  socialButtonsBlockButton: "border border-gray-300 hover:bg-gray-50",
-                  formButtonPrimary: "bg-blue-600 hover:bg-blue-700",
-                  footerActionLink: "text-blue-600 hover:text-blue-800"
-                }
-              }}
-            />
-          )}
-        </div>
-
-        <div className="mt-6 text-center">
-          <div className="text-sm text-gray-600">
-            {mode === 'login' ? (
-              <>
-                Don't have an account?{' '}
-                <Button
-                  variant="link"
-                  className="p-0 h-auto text-blue-600 hover:text-blue-800 font-medium"
-                  onClick={() => setMode('signup')}
-                >
-                  Sign up
-                </Button>
-              </>
-            ) : (
-              <>
-                Already have an account?{' '}
-                <Button
-                  variant="link"
-                  className="p-0 h-auto text-blue-600 hover:text-blue-800 font-medium"
-                  onClick={() => setMode('login')}
-                >
-                  Sign in
-                </Button>
-              </>
-            )}
-          </div>
+          <SignIn 
+            fallbackRedirectUrl="/dashboard"
+            appearance={{
+              elements: {
+                rootBox: "w-full",
+                card: "shadow-lg border-0 rounded-lg",
+                headerTitle: "text-2xl font-semibold",
+                headerSubtitle: "text-gray-600",
+                socialButtonsBlockButton: "border border-gray-300 hover:bg-gray-50",
+                formButtonPrimary: "bg-blue-600 hover:bg-blue-700",
+                footerActionLink: "text-blue-600 hover:text-blue-800"
+              }
+            }}
+          />
         </div>
 
         <div className="text-center mt-6">
