@@ -1,4 +1,3 @@
-
 import { Heart, Users, Shield, Award } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -225,12 +224,6 @@ const About = () => {
             <div className="h-12 bg-slate-200 rounded flex items-center justify-center">
               <span className="text-slate-500 font-medium">Healthcare Partner 4</span>
             </div>
-          </div>
-          
-          <div className="mt-12">
-            <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200 px-6 py-2">
-              SOC 2 Certified • HIPAA Compliant • Trusted by 500+ Providers
-            </Badge>
           </div>
         </div>
       </section>
