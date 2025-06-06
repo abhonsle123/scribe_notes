@@ -232,7 +232,7 @@ const Index = () => {
                 </Badge>
                 <h1 className="text-6xl lg:text-8xl font-black bg-gradient-to-r from-gray-900 via-turquoise to-sky-blue bg-clip-text text-transparent leading-[0.9] tracking-tight">
                   Transform 
-                  <span className="block text-turquoise">Medical Communications</span>
+                  <span className="block text-turquoise">Medical Communication</span>
                   <span className="block text-4xl lg:text-5xl font-bold mt-4 text-gray-700">
                     with AI Voice & Document Processing
                   </span>
