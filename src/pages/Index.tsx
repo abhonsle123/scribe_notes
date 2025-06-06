@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -140,9 +139,9 @@ const Index = () => {
   const realImpactStats = [
     {
       icon: FileText,
-      title: "Summaries Generated",
+      title: "Content Generated",
       value: loading ? "..." : animatedStats.totalSummaries.toLocaleString(),
-      description: "Medical reports transformed",
+      description: "Reports, notes & summaries",
       gradient: "from-turquoise to-sky-blue"
     },
     {
@@ -155,7 +154,7 @@ const Index = () => {
     {
       icon: Star,
       title: "Average Rating",
-      value: loading ? "..." : animatedStats.averageRating ? `${animatedStats.averageRating}/5` : "No data",
+      value: loading ? "..." : animatedStats.averageRating ? `${animatedStats.averageRating}/10` : "No data",
       description: "User satisfaction score",
       gradient: "from-lavender to-turquoise"
     },
@@ -193,25 +192,25 @@ const Index = () => {
     {
       icon: Shield,
       title: "HIPAA Compliant",
-      description: "Ensuring the highest standards of data privacy and security.",
+      description: "Ensuring the highest standards of data privacy and security for all voice recordings and documents.",
       gradient: "from-turquoise to-sky-blue"
     },
     {
       icon: Zap,
       title: "Instant Results",
-      description: "Get patient-friendly summaries in seconds, not hours.",
+      description: "Get transcriptions and patient-friendly summaries in seconds, not hours.",
       gradient: "from-sky-blue to-lavender"
     },
     {
       icon: Heart,
       title: "Improved Outcomes",
-      description: "Enhance patient understanding and adherence to treatment plans.",
+      description: "Enhance patient understanding through both written summaries and verbal communication insights.",
       gradient: "from-lavender to-turquoise"
     },
     {
       icon: Award,
       title: "Trusted by Professionals",
-      description: "Used and trusted by healthcare providers nationwide.",
+      description: "Used for voice transcription and document processing by healthcare providers nationwide.",
       gradient: "from-turquoise to-lavender"
     }
   ];
@@ -233,13 +232,13 @@ const Index = () => {
                 </Badge>
                 <h1 className="text-6xl lg:text-8xl font-black bg-gradient-to-r from-gray-900 via-turquoise to-sky-blue bg-clip-text text-transparent leading-[0.9] tracking-tight">
                   Transform 
-                  <span className="block text-turquoise">Medical Reports</span>
+                  <span className="block text-turquoise">Medical Communications</span>
                   <span className="block text-4xl lg:text-5xl font-bold mt-4 text-gray-700">
-                    into Patient-Friendly Summaries
+                    with AI Voice & Document Processing
                   </span>
                 </h1>
                 <p className="text-2xl text-gray-600 leading-relaxed max-w-2xl font-medium">
-                  Liaise converts complex medical discharge summaries into clear, understandable language that patients can easily comprehend, improving health literacy and patient outcomes.
+                  Liaise converts voice recordings into clinical notes and transforms complex medical documents into clear, patient-friendly summaries, revolutionizing healthcare communication.
                 </p>
               </div>
               
@@ -252,7 +251,7 @@ const Index = () => {
                   Start Converting Now
                   <ArrowRight className="ml-3 h-6 w-6" />
                 </Button>
-                <Link to="/contact">
+                <Link to="/how-it-works">
                   <Button variant="outline" size="lg" className="border-2 border-turquoise/30 text-turquoise hover:bg-turquoise/10 px-10 py-6 rounded-2xl text-xl font-semibold transition-all duration-300 backdrop-blur-sm">
                     See How It Works
                     <Brain className="ml-3 h-6 w-6" />
@@ -269,27 +268,27 @@ const Index = () => {
                     <Stethoscope className="h-8 w-8 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-800">Medical Report Upload</h3>
-                    <p className="text-gray-500">Discharge Summary.pdf</p>
+                    <h3 className="text-xl font-bold text-gray-800">Voice & Document Processing</h3>
+                    <p className="text-gray-500">Audio Recording & Report Upload</p>
                   </div>
                 </div>
                 <div className="space-y-6">
                   <div className="flex items-center space-x-4">
                     <CheckCircle className="h-6 w-6 text-green-500" />
-                    <span className="text-gray-700 font-medium">Document processed</span>
+                    <span className="text-gray-700 font-medium">Voice transcribed to clinical notes</span>
                   </div>
                   <div className="flex items-center space-x-4">
                     <CheckCircle className="h-6 w-6 text-green-500" />
-                    <span className="text-gray-700 font-medium">Medical terms simplified</span>
+                    <span className="text-gray-700 font-medium">Medical documents processed</span>
                   </div>
                   <div className="flex items-center space-x-4">
                     <CheckCircle className="h-6 w-6 text-green-500" />
-                    <span className="text-gray-700 font-medium">Patient summary generated</span>
+                    <span className="text-gray-700 font-medium">Patient summaries generated</span>
                   </div>
                 </div>
                 <div className="mt-8 p-6 bg-gradient-to-r from-turquoise/10 to-sky-blue/10 rounded-2xl backdrop-blur-sm">
                   <p className="text-gray-600 font-medium">
-                    "Your recent hospital visit summary is ready! We've explained everything in simple terms..."
+                    "Your consultation recording and visit summary are ready! We've explained everything in simple terms..."
                   </p>
                 </div>
               </div>
@@ -306,7 +305,7 @@ const Index = () => {
               Real Impact, Real Results
             </h2>
             <p className="text-2xl text-gray-600 max-w-4xl mx-auto font-medium">
-              See the actual impact Liaise is making in healthcare communication across all our users
+              See the actual impact Liaise is making in healthcare communication through voice transcription and document processing
             </p>
           </div>
           
@@ -335,7 +334,7 @@ const Index = () => {
               Powerful Features for Better Communication
             </h2>
             <p className="text-2xl text-gray-600 max-w-4xl mx-auto font-medium">
-              Everything you need to transform complex medical language into patient-friendly summaries
+              Everything you need to transform voice recordings and complex medical language into patient-friendly summaries
             </p>
           </div>
           
@@ -367,7 +366,7 @@ const Index = () => {
               Trusted by Healthcare Professionals
             </h2>
             <p className="text-2xl text-gray-600 max-w-4xl mx-auto font-medium">
-              Built with security, compliance, and patient care in mind
+              Built with security, compliance, and patient care in mind for all voice and document processing
             </p>
           </div>
           
@@ -393,10 +392,10 @@ const Index = () => {
         <div className="container mx-auto px-6 text-center relative z-10">
           <div className="max-w-5xl mx-auto">
             <h2 className="text-5xl lg:text-6xl font-black text-white mb-8">
-              Ready to Improve Patient Communication?
+              Ready to Transform Healthcare Communication?
             </h2>
             <p className="text-2xl text-white/90 mb-12 max-w-3xl mx-auto font-medium leading-relaxed">
-              Join healthcare professionals who are already using Liaise to create better patient experiences through clear, understandable medical summaries.
+              Join healthcare professionals who are already using Liaise for voice transcription, document processing, and creating better patient experiences through clear, understandable medical summaries.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center">
               <Link to="/login">
