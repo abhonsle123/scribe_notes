@@ -1,3 +1,4 @@
+
 import { Heart, Users, Shield, Award } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -179,7 +180,7 @@ const About = () => {
                         <Shield className="h-16 w-16 text-purple-600" />
                       </div>
                       <h3 className="text-xl font-bold text-slate-900 mb-2">Arjun Bhonsle</h3>
-                      <p className="text-purple-600 font-medium">Co-Founder and CTO</p>
+                      <p className="text-purple-600 font-medium">Co-Founder and CEO</p>
                     </CardContent>
                   </Card>
                 </div>
