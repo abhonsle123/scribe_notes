@@ -55,7 +55,9 @@ Deno.serve(async (req) => {
 
     let averageRating: number | null = null;
     if (feedbackData && feedbackData.length > 0) {
-      averageRating = feedbackData.reduce((sum, f) => sum + f.overall_rating, 0) / feedbackData.length;
+      const avgRating = feedbackData.reduce((sum, f) => sum + f.overall_rating, 0) / feedbackData.length;
+      // Convert from 5-point scale to 10-point scale
+      averageRating = avgRating * 2;
     }
 
     const stats: GlobalStats = {

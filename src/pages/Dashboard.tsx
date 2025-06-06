@@ -185,8 +185,10 @@ const Dashboard = () => {
       let patientSatisfaction = "N/A";
       let averageRating: number | null = null;
       if (!feedbackError && feedbackData && feedbackData.length > 0) {
-        averageRating = feedbackData.reduce((sum, feedback) => sum + feedback.overall_rating, 0) / feedbackData.length;
-        patientSatisfaction = `${averageRating.toFixed(1)}/5`;
+        const avgRating = feedbackData.reduce((sum, feedback) => sum + feedback.overall_rating, 0) / feedbackData.length;
+        // Convert from 5-point scale to 10-point scale
+        averageRating = avgRating * 2;
+        patientSatisfaction = `${averageRating.toFixed(1)}/10`;
       }
 
       setStats({
@@ -257,9 +259,9 @@ const Dashboard = () => {
 
   const getSatisfactionTrend = () => {
     if (!stats.averageRating) return "No data";
-    if (stats.averageRating >= 4.5) return "+Excellent";
-    if (stats.averageRating >= 4.0) return "+Good";
-    if (stats.averageRating >= 3.0) return "Fair";
+    if (stats.averageRating >= 9.0) return "+Excellent";
+    if (stats.averageRating >= 8.0) return "+Good";
+    if (stats.averageRating >= 6.0) return "Fair";
     return "Needs improvement";
   };
 
