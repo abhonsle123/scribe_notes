@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,51 +19,51 @@ const FAQs = () => {
   const faqData = [
     {
       question: "Is Liaise HIPAA compliant?",
-      answer: "Yes, Liaise is fully HIPAA compliant. We implement industry-leading security measures including end-to-end encryption, secure data storage, and strict access controls. Our platform undergoes regular security audits and maintains SOC 2 certification."
+      answer: "Coming Soon..."
     },
     {
       question: "How do summaries get delivered to patients?",
-      answer: "Summaries can be delivered through multiple channels including email, SMS, or directly through your existing patient portal. You can configure delivery preferences based on patient preferences and your practice's workflow."
+      answer: "Coming Soon..."
     },
     {
       question: "Can I customize how summaries are written?",
-      answer: "Absolutely! Liaise allows you to customize summary templates, adjust reading levels, and incorporate your practice's communication style. You can also set preferences for different patient populations and conditions."
+      answer: "Coming Soon..."
     },
     {
       question: "What languages does Liaise support?",
-      answer: "Liaise currently supports English and Spanish, with additional languages planned for future releases. Our AI can also adjust communication style based on cultural context and health literacy levels."
+      answer: "Coming Soon..."
     },
     {
       question: "How secure is patient data?",
-      answer: "Patient data security is our top priority. We use enterprise-grade encryption both in transit and at rest, maintain strict access controls, and follow zero-trust security principles. Data is never shared with third parties and is automatically purged according to your retention policies."
+      answer: "Coming Soon..."
     },
     {
       question: "How does Liaise integrate with existing EHR systems?",
-      answer: "Liaise offers seamless integration with major EHR systems including Epic, Cerner, and Allscripts. Our integration team works with you to ensure a smooth setup process with minimal disruption to your existing workflows."
+      answer: "Coming Soon..."
     },
     {
       question: "What types of medical documents can Liaise process?",
-      answer: "Liaise can process discharge summaries, visit notes, test results, treatment plans, and other clinical documentation. Our AI is trained on a wide variety of medical document types and specialties."
+      answer: "Coming Soon..."
     },
     {
       question: "How long does it take to generate a summary?",
-      answer: "Most summaries are generated within 30-60 seconds of upload. Complex documents may take up to 2 minutes. You'll receive real-time updates on processing status through our dashboard."
+      answer: "Coming Soon..."
     },
     {
       question: "Can patients provide feedback on their summaries?",
-      answer: "Yes, patients can rate their summaries and provide feedback, which helps our AI continuously improve. This feedback loop ensures summaries become more effective over time for your patient population."
+      answer: "Coming Soon..."
     },
     {
       question: "What support is available during implementation?",
-      answer: "We provide comprehensive onboarding support including training sessions, technical setup assistance, and ongoing customer success management. Our support team is available 24/7 for urgent issues."
+      answer: "Coming Soon..."
     },
     {
       question: "How is pricing calculated?",
-      answer: "Pricing is based on the number of summaries processed per month. We offer tiered plans to accommodate practices of all sizes, from solo practitioners to large health systems. Contact us for volume discounts."
+      answer: "Coming Soon..."
     },
     {
       question: "Can I try Liaise before committing?",
-      answer: "Yes! We offer a 14-day free trial with full access to all features. No credit card required to get started. Our team can also provide a personalized demo to show how Liaise works with your specific use cases."
+      answer: "Coming Soon..."
     }
   ];
 
