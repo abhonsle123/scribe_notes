@@ -32,66 +32,67 @@ const Login = () => {
           <p className="text-gray-600 mt-2">Healthcare language, human understanding.</p>
         </div>
 
-        <Card className="shadow-lg border-0">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">
-              {mode === 'login' ? 'Welcome Back' : 'Create Account'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center">
-              {mode === 'login' ? (
-                <SignIn 
-                  fallbackRedirectUrl="/dashboard"
-                  appearance={{
-                    elements: {
-                      rootBox: "w-full",
-                      card: "shadow-none border-0",
-                    }
-                  }}
-                />
-              ) : (
-                <SignUp 
-                  fallbackRedirectUrl="/dashboard"
-                  appearance={{
-                    elements: {
-                      rootBox: "w-full",
-                      card: "shadow-none border-0",
-                    }
-                  }}
-                />
-              )}
-            </div>
+        <div className="flex justify-center">
+          {mode === 'login' ? (
+            <SignIn 
+              fallbackRedirectUrl="/dashboard"
+              appearance={{
+                elements: {
+                  rootBox: "w-full",
+                  card: "shadow-lg border-0 rounded-lg",
+                  headerTitle: "text-2xl font-semibold",
+                  headerSubtitle: "text-gray-600",
+                  socialButtonsBlockButton: "border border-gray-300 hover:bg-gray-50",
+                  formButtonPrimary: "bg-blue-600 hover:bg-blue-700",
+                  footerActionLink: "text-blue-600 hover:text-blue-800"
+                }
+              }}
+            />
+          ) : (
+            <SignUp 
+              fallbackRedirectUrl="/dashboard"
+              appearance={{
+                elements: {
+                  rootBox: "w-full",
+                  card: "shadow-lg border-0 rounded-lg",
+                  headerTitle: "text-2xl font-semibold",
+                  headerSubtitle: "text-gray-600",
+                  socialButtonsBlockButton: "border border-gray-300 hover:bg-gray-50",
+                  formButtonPrimary: "bg-blue-600 hover:bg-blue-700",
+                  footerActionLink: "text-blue-600 hover:text-blue-800"
+                }
+              }}
+            />
+          )}
+        </div>
 
-            <div className="mt-6 text-center">
-              <div className="text-sm text-gray-600">
-                {mode === 'login' ? (
-                  <>
-                    Don't have an account?{' '}
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto text-blue-600 hover:text-blue-800 font-medium"
-                      onClick={() => setMode('signup')}
-                    >
-                      Sign up
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{' '}
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto text-blue-600 hover:text-blue-800 font-medium"
-                      onClick={() => setMode('login')}
-                    >
-                      Sign in
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="mt-6 text-center">
+          <div className="text-sm text-gray-600">
+            {mode === 'login' ? (
+              <>
+                Don't have an account?{' '}
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-blue-600 hover:text-blue-800 font-medium"
+                  onClick={() => setMode('signup')}
+                >
+                  Sign up
+                </Button>
+              </>
+            ) : (
+              <>
+                Already have an account?{' '}
+                <Button
+                  variant="link"
+                  className="p-0 h-auto text-blue-600 hover:text-blue-800 font-medium"
+                  onClick={() => setMode('login')}
+                >
+                  Sign in
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
 
         <div className="text-center mt-6">
           <p className="text-xs text-gray-500">
