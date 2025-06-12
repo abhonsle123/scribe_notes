@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,17 +64,46 @@ const PastTranscriptions = () => {
     try {
       setLoading(true);
       
-      // Clean up old transcriptions first
-      await supabase.rpc('delete_old_transcriptions');
+      // Get user settings to determine data retention period
+      const { data: userSettings } = await supabase
+        .from('user_settings')
+        .select('data_retention_days, auto_delete_enabled')
+        .eq('user_id', user?.id)
+        .single();
+
+      let retentionDays = 3; // Default to 3 days
+      let autoDeleteEnabled = true;
+
+      if (userSettings) {
+        retentionDays = userSettings.data_retention_days || 3;
+        autoDeleteEnabled = userSettings.auto_delete_enabled !== false;
+      }
+
+      // Only clean up old transcriptions if auto-delete is enabled
+      if (autoDeleteEnabled) {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+        
+        const { error: deleteError } = await supabase
+          .from('transcriptions')
+          .delete()
+          .eq('user_id', user?.id)
+          .lt('created_at', cutoffDate.toISOString());
+
+        if (deleteError) {
+          console.error('Error cleaning up old transcriptions:', deleteError);
+        }
+      }
       
-      // Fetch transcriptions from the last 3 days
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      // Fetch transcriptions based on retention settings
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
       
       const { data, error } = await supabase
         .from('transcriptions')
         .select('*')
-        .gte('created_at', threeDaysAgo.toISOString())
+        .eq('user_id', user?.id)
+        .gte('created_at', cutoffDate.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -88,6 +116,7 @@ const PastTranscriptions = () => {
         return;
       }
 
+      console.log('Fetched transcriptions:', data);
       setTranscriptions(data || []);
     } catch (error) {
       console.error('Error:', error);
@@ -119,7 +148,8 @@ const PastTranscriptions = () => {
       const { error } = await supabase
         .from('transcriptions')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user?.id);
 
       if (error) {
         console.error('Error deleting transcription:', error);
@@ -155,6 +185,7 @@ const PastTranscriptions = () => {
         .from('transcriptions')
         .select('*')
         .eq('id', selectedTranscription.id)
+        .eq('user_id', user?.id)
         .single();
 
       if (!error && data) {
@@ -450,7 +481,7 @@ const PastTranscriptions = () => {
               Past Transcriptions
             </h1>
             <p className="text-xl text-gray-600">
-              Recent audio transcriptions from the last 3 days ({transcriptions.length} total)
+              Recent audio transcriptions ({transcriptions.length} total)
             </p>
           </div>
           <Button 
@@ -473,7 +504,7 @@ const PastTranscriptions = () => {
                 No Transcriptions Found
               </h3>
               <p className="text-gray-600 mb-8 text-lg">
-                You haven't created any transcriptions in the last 3 days.
+                You haven't created any transcriptions recently.
               </p>
               <Button className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full px-8 py-3 text-lg">
                 <Stethoscope className="h-5 w-5 mr-2" />
@@ -491,7 +522,7 @@ const PastTranscriptions = () => {
                 Recent Transcriptions
               </CardTitle>
               <CardDescription className="text-lg">
-                Click on any transcription to view details and play back audio. Transcriptions are automatically cleaned up after 3 days.
+                Click on any transcription to view details and play back audio.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-8">

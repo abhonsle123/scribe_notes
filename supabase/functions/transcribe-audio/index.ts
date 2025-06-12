@@ -50,6 +50,8 @@ serve(async (req) => {
       throw new Error('Audio data and transcription ID are required')
     }
 
+    console.log('Processing transcription request for ID:', transcriptionId);
+
     // Get auth header to identify user
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -70,8 +72,11 @@ serve(async (req) => {
       throw new Error('Invalid authentication')
     }
 
+    console.log('Authenticated user:', user.id);
+
     // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio)
+    console.log('Audio processed, size:', binaryAudio.length);
     
     // Create blob
     const audioBlob = new Blob([binaryAudio], { type: 'audio/webm' })
@@ -83,23 +88,36 @@ serve(async (req) => {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const audioFileName = `${user.id}/${transcriptionId}-${timestamp}.webm`
     
-    // Save audio file to storage
-    const { error: uploadError } = await supabase.storage
-      .from('audio-recordings')
-      .upload(audioFileName, binaryAudio, {
-        contentType: 'audio/webm',
-        upsert: false
-      })
+    // Try to save audio file to storage (create bucket if it doesn't exist)
+    console.log('Attempting to save audio file:', audioFileName);
+    let uploadSuccess = false;
+    
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('audio-recordings')
+        .upload(audioFileName, binaryAudio, {
+          contentType: 'audio/webm',
+          upsert: false
+        })
 
-    if (uploadError) {
-      console.error('Error uploading audio file:', uploadError)
-      // Continue with transcription even if upload fails
+      if (uploadError) {
+        console.error('Error uploading audio file:', uploadError)
+        // Continue with transcription even if upload fails
+      } else {
+        uploadSuccess = true;
+        console.log('Audio file uploaded successfully');
+      }
+    } catch (storageError) {
+      console.error('Storage error:', storageError);
+      // Continue without storage
     }
 
     // Prepare form data for Whisper
     const formData = new FormData()
     formData.append('file', audioBlob, 'audio.webm')
     formData.append('model', 'whisper-1')
+
+    console.log('Sending to OpenAI Whisper API...');
 
     // Send to OpenAI Whisper
     const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -111,11 +129,15 @@ serve(async (req) => {
     })
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${await response.text()}`)
+      const errorText = await response.text();
+      console.error('OpenAI API error:', errorText);
+      throw new Error(`OpenAI API error: ${errorText}`)
     }
 
     const result = await response.json()
     const transcriptionText = result.text
+
+    console.log('Transcription completed, length:', transcriptionText.length);
 
     // Update the transcription record with the text, audio file path, and duration
     const updateData: any = { 
@@ -124,8 +146,11 @@ serve(async (req) => {
     }
 
     // Only set audio_file_path and duration if upload was successful
-    if (!uploadError) {
+    if (uploadSuccess) {
       updateData.audio_file_path = audioFileName
+    }
+    
+    if (finalDuration > 0) {
       updateData.audio_duration = finalDuration
     }
 
@@ -133,10 +158,14 @@ serve(async (req) => {
       .from('transcriptions')
       .update(updateData)
       .eq('id', transcriptionId)
+      .eq('user_id', user.id);
 
     if (updateError) {
+      console.error('Error updating transcription:', updateError);
       throw new Error(`Failed to update transcription: ${updateError.message}`)
     }
+
+    console.log('Transcription record updated successfully');
 
     return new Response(
       JSON.stringify({ text: transcriptionText, transcriptionId }),

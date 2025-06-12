@@ -63,7 +63,7 @@ const NewTranscription = () => {
       setCurrentStep('processing');
       setProcessingStatus("Creating transcription record...");
 
-      // Create transcription record
+      // Create transcription record first
       const { data: transcription, error: createError } = await supabase
         .from('transcriptions')
         .insert({
@@ -71,15 +71,20 @@ const NewTranscription = () => {
           patient_name: patientName,
           patient_email: patientEmail || null,
           original_filename: fileName,
-          audio_duration: recordingDuration ? Math.round(recordingDuration) : 0
+          audio_duration: recordingDuration ? Math.round(recordingDuration) : 0,
+          transcription_text: null,
+          clinical_notes: null,
+          patient_summary: null
         })
         .select()
         .single();
 
       if (createError) {
+        console.error('Error creating transcription record:', createError);
         throw createError;
       }
 
+      console.log('Transcription record created:', transcription.id);
       setProcessingStatus("Converting audio to text...");
 
       // Convert audio to base64
@@ -96,9 +101,11 @@ const NewTranscription = () => {
         });
 
       if (transcribeError) {
+        console.error('Error in transcription:', transcribeError);
         throw transcribeError;
       }
 
+      console.log('Transcription completed:', transcribeResult);
       setProcessingStatus("Generating clinical notes and patient summary...");
 
       // Generate clinical notes and patient summary
@@ -111,8 +118,11 @@ const NewTranscription = () => {
         });
 
       if (notesError) {
+        console.error('Error generating clinical notes:', notesError);
         throw notesError;
       }
+
+      console.log('Clinical notes generated:', notesResult);
 
       toast({
         title: "Transcription Complete!",

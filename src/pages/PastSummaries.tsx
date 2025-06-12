@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,17 +58,46 @@ const PastSummaries = () => {
     try {
       setLoading(true);
       
-      // Clean up old summaries first
-      await supabase.rpc('delete_old_summaries');
+      // Get user settings to determine data retention period
+      const { data: userSettings } = await supabase
+        .from('user_settings')
+        .select('data_retention_days, auto_delete_enabled')
+        .eq('user_id', user?.id)
+        .single();
+
+      let retentionDays = 3; // Default to 3 days
+      let autoDeleteEnabled = true;
+
+      if (userSettings) {
+        retentionDays = userSettings.data_retention_days || 3;
+        autoDeleteEnabled = userSettings.auto_delete_enabled !== false;
+      }
+
+      // Only clean up old summaries if auto-delete is enabled
+      if (autoDeleteEnabled) {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+        
+        const { error: deleteError } = await supabase
+          .from('summaries')
+          .delete()
+          .eq('user_id', user?.id)
+          .lt('created_at', cutoffDate.toISOString());
+
+        if (deleteError) {
+          console.error('Error cleaning up old summaries:', deleteError);
+        }
+      }
       
-      // Fetch summaries from the last 3 days
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+      // Fetch summaries based on retention settings
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
       
       const { data, error } = await supabase
         .from('summaries')
         .select('*')
-        .gte('created_at', threeDaysAgo.toISOString())
+        .eq('user_id', user?.id)
+        .gte('created_at', cutoffDate.toISOString())
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -82,6 +110,7 @@ const PastSummaries = () => {
         return;
       }
 
+      console.log('Fetched summaries:', data);
       setSummaries(data || []);
     } catch (error) {
       console.error('Error:', error);
@@ -100,7 +129,8 @@ const PastSummaries = () => {
       const { error } = await supabase
         .from('summaries')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('user_id', user?.id);
 
       if (error) {
         console.error('Error deleting summary:', error);
@@ -318,7 +348,7 @@ const PastSummaries = () => {
               Past Summaries
             </h1>
             <p className="text-xl text-gray-600">
-              Recent patient summaries from the last 3 days ({summaries.length} total)
+              Recent patient summaries ({summaries.length} total)
             </p>
           </div>
           <Button 
@@ -341,7 +371,7 @@ const PastSummaries = () => {
                 No Summaries Found
               </h3>
               <p className="text-gray-600 mb-8 text-lg">
-                You haven't generated any summaries in the last 3 days.
+                You haven't generated any summaries recently.
               </p>
               <Button className="bg-gradient-to-r from-turquoise to-sky-blue hover:from-turquoise/90 hover:to-sky-blue/90 text-white rounded-full px-8 py-3 text-lg">
                 <Heart className="h-5 w-5 mr-2" />
@@ -359,7 +389,7 @@ const PastSummaries = () => {
                 Recent Summaries
               </CardTitle>
               <CardDescription className="text-lg">
-                Click on any summary to view details. Summaries are automatically cleaned up after 3 days.
+                Click on any summary to view details.
               </CardDescription>
             </CardHeader>
             <CardContent className="p-8">
