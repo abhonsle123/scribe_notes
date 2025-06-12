@@ -58,12 +58,27 @@ const PastSummaries = () => {
     try {
       setLoading(true);
       
+      // First, get the Supabase user ID from the current session
+      const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !supabaseUser) {
+        console.error('Authentication error:', authError);
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to view your summaries",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Supabase user ID:', supabaseUser.id);
+
       // Get user settings to determine data retention period
       const { data: userSettings } = await supabase
         .from('user_settings')
         .select('data_retention_days, auto_delete_enabled')
-        .eq('user_id', user?.id)
-        .single();
+        .eq('user_id', supabaseUser.id)
+        .maybeSingle();
 
       let retentionDays = 3; // Default to 3 days
       let autoDeleteEnabled = true;
@@ -81,7 +96,7 @@ const PastSummaries = () => {
         const { error: deleteError } = await supabase
           .from('summaries')
           .delete()
-          .eq('user_id', user?.id)
+          .eq('user_id', supabaseUser.id)
           .lt('created_at', cutoffDate.toISOString());
 
         if (deleteError) {
@@ -96,7 +111,7 @@ const PastSummaries = () => {
       const { data, error } = await supabase
         .from('summaries')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', supabaseUser.id)
         .gte('created_at', cutoffDate.toISOString())
         .order('created_at', { ascending: false });
 
@@ -126,11 +141,23 @@ const PastSummaries = () => {
 
   const deleteSummary = async (id: string) => {
     try {
+      // Get the current Supabase user
+      const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !supabaseUser) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('summaries')
         .delete()
         .eq('id', id)
-        .eq('user_id', user?.id);
+        .eq('user_id', supabaseUser.id);
 
       if (error) {
         console.error('Error deleting summary:', error);

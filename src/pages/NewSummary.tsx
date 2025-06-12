@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -151,9 +150,14 @@ const NewSummary = () => {
 
   const saveSummaryToDatabase = async (summaryContent: string) => {
     try {
-      if (!user) {
+      // Get the Supabase user from the current session
+      const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !supabaseUser) {
         throw new Error('User not authenticated');
       }
+
+      console.log('Using Supabase user ID:', supabaseUser.id);
 
       // Extract patient name from summary content instead of filename
       const extractedPatientName = extractPatientNameFromSummary(summaryContent);
@@ -162,7 +166,7 @@ const NewSummary = () => {
       const { data, error } = await supabase
         .from('summaries')
         .insert({
-          user_id: user.id,
+          user_id: supabaseUser.id,
           patient_name: extractedPatientName,
           original_filename: files.map(f => f.name).join(', '),
           summary_content: summaryContent,
@@ -181,6 +185,7 @@ const NewSummary = () => {
       console.log('Summary saved successfully:', data.id);
     } catch (error) {
       console.error('Failed to save summary:', error);
+      throw error;
     }
   };
 
@@ -189,6 +194,18 @@ const NewSummary = () => {
       toast({
         title: "No files uploaded",
         description: "Please upload at least one document first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Check authentication before proceeding
+    const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !supabaseUser) {
+      toast({
+        title: "Authentication Error",
+        description: "Please log in to continue",
         variant: "destructive"
       });
       return;
