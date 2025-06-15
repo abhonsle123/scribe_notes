@@ -26,6 +26,7 @@ import NewTranscription from "./pages/NewTranscription";
 import PastSummaries from "./pages/PastSummaries";
 import PastTranscriptions from "./pages/PastTranscriptions";
 import Settings from "./pages/Settings";
+import PatientSummaryView from "./pages/PatientSummaryView";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,9 @@ const App = () => (
             
             {/* Public feedback route - no authentication required */}
             <Route path="/feedback" element={<Feedback />} />
+            
+            {/* Public patient summary view - no authentication required */}
+            <Route path="/patient-summary" element={<PatientSummaryView />} />
             
             {/* Protected Dashboard Routes */}
             <Route path="/dashboard" element={
