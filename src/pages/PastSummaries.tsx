@@ -128,7 +128,7 @@ const PastSummaries = () => {
       }
 
       console.log('Fetched summaries:', data);
-      setSummaries((data as Summary[]) || []);
+      setSummaries((data as unknown as Summary[]) || []);
     } catch (error) {
       console.error('Error:', error);
       toast({
