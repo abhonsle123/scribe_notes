@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -73,7 +72,7 @@ export const SummaryChatbox = ({
       // Save chat history to database
       const { error: updateError } = await supabase
         .from('summaries')
-        .update({ chat_history: updatedMessages })
+        .update({ chat_history: updatedMessages as any })
         .eq('id', summaryId)
       
       if (updateError) {
