@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,9 @@ const NewTranscription = () => {
   };
 
   const handleAudioReady = async (audioBlob: Blob, fileName: string, recordingDuration?: number) => {
-    if (!user?.id) {
+    const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !supabaseUser) {
       toast({
         title: "Authentication Error",
         description: "Please log in to continue",
@@ -67,7 +70,7 @@ const NewTranscription = () => {
       const { data: transcription, error: createError } = await supabase
         .from('transcriptions')
         .insert({
-          user_id: user.id,
+          user_id: supabaseUser.id,
           patient_name: patientName,
           patient_email: patientEmail || null,
           original_filename: fileName,
