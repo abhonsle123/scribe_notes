@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -98,7 +97,7 @@ export const SummaryChatbox = ({
   }
 
   return (
-    <Card className="glass-card border-0 shadow-xl mt-8">
+    <Card className="glass-card border-0 shadow-xl">
       <CardHeader>
         <CardTitle className="flex items-center text-2xl">
           <Bot className="h-6 w-6 text-purple-500 mr-3" />

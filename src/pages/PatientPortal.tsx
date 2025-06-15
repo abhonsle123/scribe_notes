@@ -89,7 +89,7 @@ const PatientPortal = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20">
-      <div className="container mx-auto px-6 py-8 space-y-8 max-w-4xl">
+      <div className="container mx-auto px-6 py-8 space-y-8 max-w-7xl">
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-br from-turquoise to-sky-blue rounded-2xl mx-auto mb-6 flex items-center justify-center">
             <Heart className="h-10 w-10 text-white" />
@@ -103,32 +103,34 @@ const PatientPortal = () => {
           </p>
         </div>
 
-        <Card className="glass-card border-0 shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
-            <CardTitle className="flex items-center text-2xl">
-              <div className="p-2 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-xl mr-3">
-                <FileText className="h-6 w-6 text-turquoise" />
-              </div>
-              Your Visit Summary
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-8">
-            <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 p-8 rounded-2xl border border-gray-100">
-              <div className="prose max-w-none">
-                <div className="whitespace-pre-line text-gray-800 leading-relaxed text-lg">
-                  {summary.summary_content}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+          <Card className="glass-card border-0 shadow-xl">
+            <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
+              <CardTitle className="flex items-center text-2xl">
+                <div className="p-2 bg-gradient-to-br from-turquoise/10 to-sky-blue/10 rounded-xl mr-3">
+                  <FileText className="h-6 w-6 text-turquoise" />
+                </div>
+                Your Visit Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-8">
+              <div className="bg-gradient-to-br from-gray-50 to-blue-50/30 p-8 rounded-2xl border border-gray-100">
+                <div className="prose max-w-none">
+                  <div className="whitespace-pre-line text-gray-800 leading-relaxed text-lg">
+                    {summary.summary_content}
+                  </div>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
 
-        <SummaryChatbox
-          summaryId={summary.id}
-          summaryContent={summary.summary_content}
-          initialChatHistory={summary.chat_history}
-          isPublic={true}
-        />
+          <SummaryChatbox
+            summaryId={summary.id}
+            summaryContent={summary.summary_content}
+            initialChatHistory={summary.chat_history}
+            isPublic={true}
+          />
+        </div>
 
         <div className="text-center py-8 border-t border-gray-200">
           <p className="text-gray-600 mb-2">
