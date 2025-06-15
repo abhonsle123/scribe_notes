@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import RecordingUI from "@/components/RecordingUI";
+import { AudioRecorder } from "@/components/AudioRecorder";
 import { ArrowLeft, User, FileAudio } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -244,7 +245,7 @@ const NewTranscription = () => {
 
         {currentStep === 'recording' && (
           <div className="max-w-4xl mx-auto">
-            <RecordingUI onAudioReady={handleAudioReady} isProcessing={isProcessing} />
+            <AudioRecorder onAudioReady={handleAudioReady} isProcessing={isProcessing} />
           </div>
         )}
       </div>
