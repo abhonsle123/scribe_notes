@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { EmailSummaryForm } from "@/components/EmailSummaryForm";
+import { SummaryChatbox } from "@/components/SummaryChatbox";
 
 interface Summary {
   id: string;
@@ -39,6 +40,7 @@ interface Summary {
   patient_email: string | null;
   sent_at: string | null;
   created_at: string;
+  chat_history: { role: 'user' | 'assistant'; content: string }[] | null;
 }
 
 const PastSummaries = () => {
@@ -110,7 +112,7 @@ const PastSummaries = () => {
       
       const { data, error } = await supabase
         .from('summaries')
-        .select('*')
+        .select('*, chat_history')
         .eq('user_id', supabaseUser.id)
         .gte('created_at', cutoffDate.toISOString())
         .order('created_at', { ascending: false });
@@ -295,6 +297,13 @@ const PastSummaries = () => {
                   onEmailSent={handleEmailSent}
                 />
               )}
+
+              {/* Add the chatbox component */}
+              <SummaryChatbox
+                summaryId={selectedSummary.id}
+                summaryContent={selectedSummary.summary_content}
+                initialChatHistory={selectedSummary.chat_history}
+              />
             </div>
 
             <div className="space-y-6">

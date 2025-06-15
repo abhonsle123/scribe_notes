@@ -97,6 +97,7 @@ export type Database = {
       }
       summaries: {
         Row: {
+          chat_history: Json | null
           created_at: string
           follow_up_sent: boolean | null
           follow_up_sent_at: string | null
@@ -110,6 +111,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat_history?: Json | null
           created_at?: string
           follow_up_sent?: boolean | null
           follow_up_sent_at?: string | null
@@ -123,6 +125,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chat_history?: Json | null
           created_at?: string
           follow_up_sent?: boolean | null
           follow_up_sent_at?: string | null
