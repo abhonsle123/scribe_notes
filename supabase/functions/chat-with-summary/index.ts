@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { summaryContent, userMessage, chatHistory } = await req.json()
+    const { summaryContent, userMessage, chatHistory, isPublic } = await req.json()
 
     if (!summaryContent || !userMessage) {
       return new Response(JSON.stringify({ error: 'Missing summaryContent or userMessage' }), {
@@ -21,18 +21,21 @@ serve(async (req) => {
       })
     }
     
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
-    )
+    // Only check for auth if it's not a public request
+    if (!isPublic) {
+      const supabaseClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+      )
 
-    const { data: { user } } = await supabaseClient.auth.getUser()
-    if (!user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 401,
-        })
+      const { data: { user } } = await supabaseClient.auth.getUser()
+      if (!user) {
+          return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 401,
+          })
+      }
     }
 
     const systemPrompt = `You are a helpful medical assistant. Your role is to answer questions about the provided medical summary in simple, easy-to-understand language.

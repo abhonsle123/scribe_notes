@@ -61,6 +61,7 @@ export const SummaryChatbox = ({
           summaryContent,
           userMessage: input,
           chatHistory: messages,
+          isPublic,
         },
       })
 
