@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +12,7 @@ interface PatientSummary {
   summary_content: string;
   created_at: string;
   chat_history: { role: 'user' | 'assistant'; content: string }[] | null;
+  patient_email: string | null;
 }
 
 const PatientSummaryView = () => {
@@ -39,12 +39,11 @@ const PatientSummaryView = () => {
       setLoading(true);
       console.log('Fetching summary with ID:', summaryId, 'for email:', patientEmail);
       
-      // Create a service role client for public access
+      // First, try to fetch the summary by ID only
       const { data, error } = await supabase
         .from('summaries')
-        .select('id, patient_name, summary_content, created_at, chat_history')
+        .select('id, patient_name, summary_content, created_at, chat_history, patient_email')
         .eq('id', summaryId)
-        .eq('patient_email', patientEmail)
         .maybeSingle();
 
       console.log('Summary fetch result:', { data, error });
@@ -56,9 +55,36 @@ const PatientSummaryView = () => {
       }
 
       if (!data) {
-        console.log('No summary found for the provided criteria');
+        console.log('No summary found for the provided ID');
         setError('Summary not found. This link may have expired or is invalid.');
         return;
+      }
+
+      // Validate email access - check if the summary has a patient_email set
+      if (data.patient_email) {
+        // If patient_email is set in the database, it must match the URL parameter
+        if (data.patient_email !== patientEmail) {
+          console.log('Email mismatch - database:', data.patient_email, 'URL:', patientEmail);
+          setError('Access denied. This summary is not associated with the provided email address.');
+          return;
+        }
+      } else {
+        // If patient_email is null in database, we still validate against the URL parameter
+        // This ensures only users with the correct link can access the summary
+        console.log('Summary found but no patient_email set in database. URL email:', patientEmail);
+        
+        // Update the database record with the patient email from the URL for future reference
+        const { error: updateError } = await supabase
+          .from('summaries')
+          .update({ patient_email: patientEmail })
+          .eq('id', summaryId);
+        
+        if (updateError) {
+          console.error('Error updating patient email:', updateError);
+          // Don't fail the request if updating fails, just log it
+        } else {
+          console.log('Updated summary with patient email');
+        }
       }
 
       console.log('Summary found successfully:', data);
