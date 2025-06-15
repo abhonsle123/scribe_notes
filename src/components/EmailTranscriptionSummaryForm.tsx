@@ -7,20 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Mail, Send, CheckCircle, Heart } from "lucide-react";
+import { Mail, Send, CheckCircle, Heart, Loader2 } from "lucide-react";
 
 interface EmailTranscriptionSummaryFormProps {
   transcriptionId: string;
   patientName: string;
   summaryContent: string;
   onEmailSent: () => void;
+  originalFilename?: string;
 }
 
 export const EmailTranscriptionSummaryForm = ({ 
   transcriptionId, 
   patientName, 
   summaryContent, 
-  onEmailSent 
+  onEmailSent,
+  originalFilename,
 }: EmailTranscriptionSummaryFormProps) => {
   const [patientEmail, setPatientEmail] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -39,7 +41,6 @@ export const EmailTranscriptionSummaryForm = ({
       return;
     }
 
-    // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(patientEmail)) {
       toast({
@@ -53,11 +54,35 @@ export const EmailTranscriptionSummaryForm = ({
     setIsSending(true);
 
     try {
-      console.log('Sending email for transcription summary:', transcriptionId);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("User not authenticated to perform this action.");
+      }
+
+      console.log('Creating summary record from transcription:', transcriptionId);
+      const { data: newSummary, error: summaryError } = await supabase
+        .from('summaries')
+        .insert({
+          summary_content: summaryContent,
+          patient_name: patientName,
+          user_id: user.id,
+          original_filename: originalFilename || `From transcription ${transcriptionId}`,
+          patient_email: patientEmail,
+        })
+        .select('id')
+        .single();
+      
+      if (summaryError) {
+        console.error('Error creating summary from transcription:', summaryError);
+        throw new Error('Could not prepare summary for sending. ' + summaryError.message);
+      }
+      
+      const newSummaryId = newSummary.id;
+      console.log('Sending email for new summary:', newSummaryId);
 
       const { data, error } = await supabase.functions.invoke('send-summary-email', {
         body: {
-          summaryId: transcriptionId,
+          summaryId: newSummaryId,
           patientEmail,
           patientName,
           summaryContent
@@ -71,7 +96,6 @@ export const EmailTranscriptionSummaryForm = ({
 
       console.log('Email sent successfully:', data);
 
-      // Update the transcription record to mark patient summary as sent
       const { error: updateError } = await supabase
         .from('transcriptions')
         .update({
@@ -82,7 +106,6 @@ export const EmailTranscriptionSummaryForm = ({
 
       if (updateError) {
         console.error('Error updating transcription record:', updateError);
-        // Don't fail the request if updating the record fails, email was sent successfully
       }
 
       setEmailSent(true);
@@ -93,14 +116,13 @@ export const EmailTranscriptionSummaryForm = ({
         description: `Patient summary has been sent to ${patientEmail}`,
       });
 
-      // Send follow-up email if requested
       if (sendFollowUp) {
         try {
           console.log('Sending follow-up email...');
           
           const { data: followUpData, error: followUpError } = await supabase.functions.invoke('send-follow-up-email', {
             body: {
-              summaryId: transcriptionId,
+              summaryId: newSummaryId,
               patientEmail,
               patientName
             }
@@ -110,7 +132,7 @@ export const EmailTranscriptionSummaryForm = ({
             console.error('Error sending follow-up email:', followUpError);
             toast({
               title: "Follow-up Email Failed",
-              description: "Summary was sent, but follow-up email failed. You can send it manually later.",
+              description: "Summary was sent, but follow-up email failed.",
               variant: "destructive"
             });
           } else {
@@ -123,7 +145,6 @@ export const EmailTranscriptionSummaryForm = ({
           }
         } catch (followUpError) {
           console.error('Follow-up email error:', followUpError);
-          // Don't fail the main request for follow-up issues
         }
       }
 
@@ -218,7 +239,11 @@ export const EmailTranscriptionSummaryForm = ({
             disabled={isSending || !patientEmail}
             className="bg-blue-600 hover:bg-blue-700 flex items-center"
           >
-            <Send className="h-4 w-4 mr-2" />
+            {isSending ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Send className="h-4 w-4 mr-2" />
+            )}
             {isSending ? 'Sending...' : 'Send Email'}
           </Button>
         </div>

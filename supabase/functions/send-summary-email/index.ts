@@ -1,7 +1,7 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8'
 import { Resend } from "npm:resend@2.0.0";
+import { crypto } from "https://deno.land/std@0.190.0/crypto/mod.ts";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -27,47 +27,57 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     console.log('send-summary-email function called');
 
-    // Check if RESEND_API_KEY is available
     if (!Deno.env.get("RESEND_API_KEY")) {
       console.error('RESEND_API_KEY is not set');
       throw new Error('Email service not configured. Please contact support.');
     }
-
-    // Initialize Supabase client
-    const supabaseClient = createClient(
+    
+    // Use the admin client to bypass RLS for backend operations
+    const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
-    )
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
 
     const { summaryId, patientEmail, patientName, summaryContent }: SendSummaryEmailRequest = await req.json();
 
     console.log('Request data:', { summaryId, patientEmail, patientName: patientName ? 'Present' : 'Missing' });
 
-    // Validate required fields
     if (!summaryId || !patientEmail || !patientName || !summaryContent) {
-      console.error('Missing required fields:', { summaryId: !!summaryId, patientEmail: !!patientEmail, patientName: !!patientName, summaryContent: !!summaryContent });
+      console.error('Missing required fields');
       throw new Error('Missing required fields');
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(patientEmail)) {
       console.error('Invalid email format:', patientEmail);
       throw new Error('Invalid email format');
     }
+    
+    // Generate a secure access token
+    const token = crypto.randomUUID();
+    const expires_at = new Date();
+    expires_at.setDate(expires_at.getDate() + 7); // Token expires in 7 days
 
+    // Store the token in the database
+    const { error: tokenError } = await supabaseAdmin
+      .from('patient_access_tokens')
+      .insert({
+        summary_id: summaryId,
+        token: token,
+        expires_at: expires_at.toISOString(),
+      });
+
+    if (tokenError) {
+      console.error('Error creating access token:', tokenError);
+      throw new Error('Could not create secure access link.');
+    }
+    
     console.log('Sending summary email to:', patientEmail);
 
-    // Get the current site URL from environment or use a default
     const siteUrl = Deno.env.get('SITE_URL') || 'https://cb8d86d1-de8e-43f9-a05b-3459f4f1b848.lovableproject.com';
-    const patientSummaryUrl = `${siteUrl}/patient-summary?id=${summaryId}&email=${encodeURIComponent(patientEmail)}`;
+    const patientSummaryUrl = `${siteUrl}/patient-portal/${summaryId}/${token}`;
 
-    console.log('Generated patient summary URL:', patientSummaryUrl);
+    console.log('Generated patient portal URL:', patientSummaryUrl);
 
     // Send email using Resend with your verified domain
     const emailResponse = await resend.emails.send({
@@ -135,13 +145,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Resend API response:", emailResponse);
 
-    // Check if email sending failed
     if (emailResponse.error) {
       console.error("Resend API error:", emailResponse.error);
       throw new Error(`Email sending failed: ${emailResponse.error.message}`);
     }
 
-    // Ensure we have a successful response
     if (!emailResponse.data || !emailResponse.data.id) {
       console.error("No email ID in response:", emailResponse);
       throw new Error('Email sending failed: No confirmation received');
@@ -150,7 +158,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Email sent successfully with ID:", emailResponse.data.id);
 
     // Update the summary record to mark it as sent
-    const { error: updateError } = await supabaseClient
+    const { error: updateError } = await supabaseAdmin
       .from('summaries')
       .update({
         patient_email: patientEmail,
@@ -160,7 +168,6 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (updateError) {
       console.error('Error updating summary record:', updateError);
-      // Don't fail the request if updating the record fails, email was sent successfully
     } else {
       console.log('Summary record updated successfully');
     }
@@ -181,7 +188,6 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error("Error in send-summary-email function:", error);
     
-    // Return a proper error response
     return new Response(
       JSON.stringify({ 
         error: error.message || 'An unexpected error occurred',

@@ -1,10 +1,9 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { useUser } from "@clerk/clerk-react";
 import Index from "./pages/Index";
 import HowItWorks from "./pages/HowItWorks";
@@ -26,7 +25,7 @@ import NewTranscription from "./pages/NewTranscription";
 import PastSummaries from "./pages/PastSummaries";
 import PastTranscriptions from "./pages/PastTranscriptions";
 import Settings from "./pages/Settings";
-import PatientSummaryView from "./pages/PatientSummaryView";
+import PatientPortal from "./pages/PatientPortal";
 
 const queryClient = new QueryClient();
 
@@ -67,11 +66,10 @@ const App = () => (
             <Route path="/security" element={<Security />} />
             <Route path="/help" element={<Help />} />
             
-            {/* Public feedback route - no authentication required */}
             <Route path="/feedback" element={<Feedback />} />
             
-            {/* Public patient summary view - no authentication required */}
-            <Route path="/patient-summary" element={<PatientSummaryView />} />
+            {/* New public patient portal with token-based access */}
+            <Route path="/patient-portal/:summaryId/:token" element={<PatientPortal />} />
             
             {/* Protected Dashboard Routes */}
             <Route path="/dashboard" element={
@@ -88,7 +86,6 @@ const App = () => (
               <Route path="support" element={<div>Support - Coming Soon</div>} />
             </Route>
             
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

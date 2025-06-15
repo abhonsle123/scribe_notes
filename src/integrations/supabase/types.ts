@@ -62,6 +62,38 @@ export type Database = {
           },
         ]
       }
+      patient_access_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          summary_id: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          summary_id: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          summary_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patient_access_tokens_summary_id_fkey"
+            columns: ["summary_id"]
+            isOneToOne: false
+            referencedRelation: "summaries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string | null
