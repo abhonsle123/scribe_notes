@@ -1,3 +1,4 @@
+
 import { useState, useRef, useEffect } from 'react'
 import { supabase } from '@/integrations/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -16,12 +17,14 @@ interface SummaryChatboxProps {
   summaryId: string
   summaryContent: string
   initialChatHistory: Message[] | null
+  isPublic?: boolean
 }
 
 export const SummaryChatbox = ({
   summaryId,
   summaryContent,
   initialChatHistory,
+  isPublic = false,
 }: SummaryChatboxProps) => {
   const [messages, setMessages] = useState<Message[]>(initialChatHistory || [])
   const [input, setInput] = useState('')
@@ -52,9 +55,7 @@ export const SummaryChatbox = ({
     setLoading(true)
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('Not authenticated')
-
+      // For public access, we don't need authentication
       const { data, error } = await supabase.functions.invoke('chat-with-summary', {
         body: {
           summaryContent,
@@ -69,14 +70,16 @@ export const SummaryChatbox = ({
       const updatedMessages = [...newMessages, assistantMessage]
       setMessages(updatedMessages)
       
-      // Save chat history to database
-      const { error: updateError } = await supabase
-        .from('summaries')
-        .update({ chat_history: updatedMessages as any })
-        .eq('id', summaryId)
-      
-      if (updateError) {
+      // Only save chat history if not in public mode
+      if (!isPublic) {
+        const { error: updateError } = await supabase
+          .from('summaries')
+          .update({ chat_history: updatedMessages as any })
+          .eq('id', summaryId)
+        
+        if (updateError) {
           throw updateError
+        }
       }
 
     } catch (error: any) {

@@ -37,13 +37,17 @@ const PatientSummaryView = () => {
   const fetchSummary = async () => {
     try {
       setLoading(true);
+      console.log('Fetching summary with ID:', summaryId, 'for email:', patientEmail);
       
+      // Create a service role client for public access
       const { data, error } = await supabase
         .from('summaries')
         .select('id, patient_name, summary_content, created_at, chat_history')
         .eq('id', summaryId)
         .eq('patient_email', patientEmail)
         .maybeSingle();
+
+      console.log('Summary fetch result:', { data, error });
 
       if (error) {
         console.error('Error fetching summary:', error);
@@ -52,10 +56,12 @@ const PatientSummaryView = () => {
       }
 
       if (!data) {
+        console.log('No summary found for the provided criteria');
         setError('Summary not found. This link may have expired or is invalid.');
         return;
       }
 
+      console.log('Summary found successfully:', data);
       setSummary(data as PatientSummary);
     } catch (error) {
       console.error('Error:', error);
@@ -145,6 +151,7 @@ const PatientSummaryView = () => {
           summaryId={summary.id}
           summaryContent={summary.summary_content}
           initialChatHistory={summary.chat_history}
+          isPublic={true}
         />
 
         {/* Footer */}
