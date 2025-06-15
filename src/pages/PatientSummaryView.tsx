@@ -29,6 +29,7 @@ const PatientSummaryView = () => {
     if (summaryId && patientEmail) {
       fetchSummary();
     } else {
+      console.log('Missing parameters - summaryId:', summaryId, 'patientEmail:', patientEmail);
       setError('Invalid access link. Please check your email for the correct link.');
       setLoading(false);
     }
@@ -38,27 +39,44 @@ const PatientSummaryView = () => {
     try {
       setLoading(true);
       console.log('Fetching summary with ID:', summaryId, 'for email:', patientEmail);
+      console.log('URL parameters check - ID exists:', !!summaryId, 'Email exists:', !!patientEmail);
       
       // First, try to fetch the summary by ID only
+      console.log('Attempting to fetch from summaries table...');
       const { data, error } = await supabase
         .from('summaries')
         .select('id, patient_name, summary_content, created_at, chat_history, patient_email')
         .eq('id', summaryId)
         .maybeSingle();
 
-      console.log('Summary fetch result:', { data, error });
+      console.log('Supabase query result:');
+      console.log('- Data:', data);
+      console.log('- Error:', error);
+      console.log('- Data exists:', !!data);
 
       if (error) {
-        console.error('Error fetching summary:', error);
+        console.error('Supabase error details:', error);
         setError('Unable to load your summary. Please check your link or contact your healthcare provider.');
         return;
       }
 
       if (!data) {
-        console.log('No summary found for the provided ID');
+        console.log('No summary found for ID:', summaryId);
+        console.log('This could mean:');
+        console.log('1. The summary ID does not exist in the database');
+        console.log('2. There is a database connection issue');
+        console.log('3. The summary has been deleted');
         setError('Summary not found. This link may have expired or is invalid.');
         return;
       }
+
+      console.log('Summary found in database:', {
+        id: data.id,
+        patient_name: data.patient_name,
+        has_content: !!data.summary_content,
+        patient_email_in_db: data.patient_email,
+        url_email: patientEmail
+      });
 
       // Validate email access - check if the summary has a patient_email set
       if (data.patient_email) {
@@ -68,12 +86,14 @@ const PatientSummaryView = () => {
           setError('Access denied. This summary is not associated with the provided email address.');
           return;
         }
+        console.log('Email validation passed - database email matches URL email');
       } else {
         // If patient_email is null in database, we still validate against the URL parameter
         // This ensures only users with the correct link can access the summary
         console.log('Summary found but no patient_email set in database. URL email:', patientEmail);
         
         // Update the database record with the patient email from the URL for future reference
+        console.log('Attempting to update summary with patient email...');
         const { error: updateError } = await supabase
           .from('summaries')
           .update({ patient_email: patientEmail })
@@ -83,14 +103,14 @@ const PatientSummaryView = () => {
           console.error('Error updating patient email:', updateError);
           // Don't fail the request if updating fails, just log it
         } else {
-          console.log('Updated summary with patient email');
+          console.log('Successfully updated summary with patient email');
         }
       }
 
-      console.log('Summary found successfully:', data);
+      console.log('All validation passed, setting summary data');
       setSummary(data as PatientSummary);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Unexpected error in fetchSummary:', error);
       setError('Unable to load your summary. Please try again later.');
     } finally {
       setLoading(false);
