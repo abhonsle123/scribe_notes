@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -77,31 +78,9 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (user?.id) {
-      fetchUserProfile();
       fetchDashboardData();
     }
   }, [user?.id]);
-
-  const fetchUserProfile = async () => {
-    if (!user?.id) return;
-
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('first_name, last_name, full_name')
-        .eq('id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return;
-      }
-
-      setUserProfile(profile);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
 
   const getDisplayName = () => {
     if (userProfile?.first_name) {
@@ -115,13 +94,36 @@ const Dashboard = () => {
 
   const fetchDashboardData = async () => {
     if (!user?.id) return;
+    setLoading(true);
 
     try {
+      const { data: { user: supabaseUser }, error: authError } = await supabase.auth.getUser();
+
+      if (authError || !supabaseUser) {
+        console.error("Dashboard: Auth error", authError);
+        setLoading(false);
+        return;
+      }
+      const supabaseUserId = supabaseUser.id;
+
+      // Fetch user profile
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('first_name, last_name, full_name')
+        .eq('id', supabaseUserId)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
+      } else {
+        setUserProfile(profile);
+      }
+
       // Fetch summaries
       const { data: summariesData, error: summariesError } = await supabase
         .from('summaries')
         .select('id, patient_name, sent_at, created_at, patient_email')
-        .eq('user_id', user.id)
+        .eq('user_id', supabaseUserId)
         .order('created_at', { ascending: false });
 
       if (summariesError) throw summariesError;
@@ -130,7 +132,7 @@ const Dashboard = () => {
       const { data: transcriptionsData, error: transcriptionsError } = await supabase
         .from('transcriptions')
         .select('id, patient_name, transcription_text, clinical_notes, patient_summary, created_at, audio_duration')
-        .eq('user_id', user.id)
+        .eq('user_id', supabaseUserId)
         .order('created_at', { ascending: false });
 
       if (transcriptionsError) throw transcriptionsError;
@@ -179,7 +181,7 @@ const Dashboard = () => {
       const { data: feedbackData, error: feedbackError } = await supabase
         .from('feedback')
         .select('overall_rating')
-        .eq('user_id', user.id)
+        .eq('user_id', supabaseUserId)
         .not('overall_rating', 'is', null);
 
       let patientSatisfaction = "N/A";
