@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { extractTextFromFile, validateFileForProcessing } from "@/utils/fileProcessor";
 import { EmailSummaryForm } from "@/components/EmailSummaryForm";
+import { SummaryChatbox } from "@/components/SummaryChatbox";
 import {
   Upload,
   FileText,
@@ -22,7 +24,8 @@ import {
   X,
   Sparkles,
   Heart,
-  Users
+  Users,
+  List,
 } from "lucide-react";
 
 const NewSummary = () => {
@@ -37,6 +40,7 @@ const NewSummary = () => {
   const [emailSent, setEmailSent] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -346,8 +350,8 @@ const NewSummary = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Summary Preview */}
-            <div className="lg:col-span-2">
+            {/* Summary Preview & Chat */}
+            <div className="lg:col-span-2 space-y-8">
               <Card className="glass-card border-0 shadow-xl hover-lift">
                 <CardHeader className="bg-gradient-to-r from-turquoise/5 to-sky-blue/5 rounded-t-xl">
                   <CardTitle className="flex items-center text-2xl">
@@ -382,9 +386,25 @@ const NewSummary = () => {
                       <Edit className="h-5 w-5 mr-2" />
                       Generate New Summary
                     </Button>
+                    <Button
+                      variant="outline"
+                      className="flex items-center border-2 border-purple-200/50 text-purple-600 hover:bg-purple-500/5 rounded-full px-6 py-3"
+                      onClick={() => navigate('/dashboard/past-summaries')}
+                    >
+                      <List className="h-5 w-5 mr-2" />
+                      View All Summaries
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
+
+              {summaryId && (
+                <SummaryChatbox
+                  summaryId={summaryId}
+                  summaryContent={generatedSummary}
+                  initialChatHistory={null}
+                />
+              )}
             </div>
 
             {/* Email Sending */}
