@@ -19,15 +19,15 @@ const Header = () => {
   ];
 
   return (
-    <header className="bg-white shadow-sm border-b sticky top-0 z-50">
+    <header className="bg-background shadow-sm border-b sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to={user ? "/dashboard" : "/"} className="flex items-center space-x-3">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <FileText className="h-6 w-6 text-white" />
+            <div className="bg-primary p-2 rounded-lg">
+              <FileText className="h-6 w-6 text-primary-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900">Liaise</h1>
+            <h1 className="text-2xl font-bold text-foreground">Liaise</h1>
           </Link>
 
           {/* Desktop Navigation */}
@@ -36,7 +36,7 @@ const Header = () => {
               <Link
                 key={item.name}
                 to={item.href}
-                className="text-gray-600 hover:text-blue-600 transition-colors font-medium"
+                className="text-muted-foreground hover:text-primary transition-colors font-medium"
               >
                 {item.name}
               </Link>
@@ -46,9 +46,8 @@ const Header = () => {
               <div className="flex items-center space-x-4">
                 <Link to="/contact">
                   <Button 
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    className="bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
                   >
                     Contact us
                   </Button>
@@ -64,7 +63,7 @@ const Header = () => {
               </div>
             ) : (
               <Link to="/login">
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button>
                   Log In
                 </Button>
               </Link>
@@ -75,7 +74,7 @@ const Header = () => {
           <div className="md:hidden">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-muted-foreground hover:text-foreground"
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
@@ -85,12 +84,12 @@ const Header = () => {
         {/* Mobile Navigation */}
         {isMenuOpen && (
           <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 bg-white border-t">
+            <div className="px-2 pt-2 pb-3 space-y-1 bg-background border-t">
               {navigation.map((item) => (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className="block px-3 py-2 text-gray-600 hover:text-blue-600 transition-colors font-medium"
+                  className="block px-3 py-2 text-muted-foreground hover:text-primary transition-colors font-medium"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {item.name}
@@ -101,9 +100,9 @@ const Header = () => {
                 <div className="px-3 py-2 space-y-2">
                   <Link to="/contact">
                     <Button 
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      className="w-full bg-blue-600 text-white hover:bg-blue-700 border-blue-600"
+                      className="w-full"
                       onClick={() => setIsMenuOpen(false)}
                     >
                       Contact us
@@ -123,7 +122,7 @@ const Header = () => {
               ) : (
                 <div className="px-3 py-2">
                   <Link to="/login">
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                    <Button className="w-full">
                       Log In
                     </Button>
                   </Link>
