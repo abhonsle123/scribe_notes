@@ -134,7 +134,7 @@ Contributions are welcome! This is an experimental project to explore AI applica
 
 ## 📄 License
 
-MIT License - feel free to use this project for learning and experimentation.
+This project is open source and available for learning and experimentation.
 
 ## 🐛 Known Issues
 
