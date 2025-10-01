@@ -1,6 +1,6 @@
 # Liaise - Medical Documentation Platform
 
-A modern web application for medical transcription, clinical note generation, and patient-friendly summaries. Built to streamline healthcare documentation workflows with secure, HIPAA-compliant practices.
+An experimental web application exploring ambient scribe technology and AI's potential in healthcare. This project demonstrates real-time medical transcription, clinical note generation, and patient-friendly communication tools.
 
 ## 🚀 Features
 
@@ -124,16 +124,17 @@ supabase/
 
 ## 🤝 Contributing
 
-This is a private project. For authorized collaborators:
+Contributions are welcome! This is an experimental project to explore AI applications in healthcare.
 
-1. Create a feature branch
-2. Make your changes
-3. Submit a pull request
-4. Ensure all tests pass
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-All rights reserved. Unauthorized copying or distribution is prohibited.
+MIT License - feel free to use this project for learning and experimentation.
 
 ## 🐛 Known Issues
 
