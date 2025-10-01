@@ -1,73 +1,150 @@
-# Welcome to your Lovable project
+# Liaise - Medical Documentation Platform
 
-## Project info
+A modern web application for medical transcription, clinical note generation, and patient-friendly summaries. Built to streamline healthcare documentation workflows with secure, HIPAA-compliant practices.
 
-**URL**: https://lovable.dev/projects/cb8d86d1-de8e-43f9-a05b-3459f4f1b848
+## 🚀 Features
 
-## How can I edit this code?
+- **Audio Transcription**: Real-time voice recording with intelligent transcription powered by OpenAI Whisper
+- **Clinical Note Generation**: AI-assisted conversion of transcriptions into structured clinical notes
+- **Patient-Friendly Summaries**: Automatic translation of medical jargon into accessible language
+- **Interactive Chat**: AI-powered Q&A interface for patients to understand their discharge summaries
+- **Secure Authentication**: Enterprise-grade authentication with Clerk
+- **Dashboard Analytics**: Track usage statistics and manage past transcriptions/summaries
+- **Email Delivery**: Automated secure delivery of summaries to patients
 
-There are several ways of editing your application.
+## 🛠️ Tech Stack
 
-**Use Lovable**
+### Frontend
+- **React 18** - Modern UI library with hooks
+- **TypeScript** - Type-safe development
+- **Vite** - Lightning-fast build tool
+- **Tailwind CSS** - Utility-first styling
+- **shadcn/ui** - Beautiful, accessible component library
+- **React Router** - Client-side routing
+- **React Query** - Server state management
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/cb8d86d1-de8e-43f9-a05b-3459f4f1b848) and start prompting.
+### Backend & Services
+- **Supabase** - Backend-as-a-Service (Database, Auth, Storage)
+- **Edge Functions** - Serverless API endpoints
+- **Clerk** - Authentication & user management
+- **OpenAI API** - Whisper for transcription, GPT for summaries
 
-Changes made via Lovable will be committed automatically to this repo.
+### UI Libraries
+- **Radix UI** - Unstyled, accessible components
+- **Lucide React** - Icon library
+- **Recharts** - Data visualization
+- **Sonner** - Toast notifications
 
-**Use your preferred IDE**
+## 📋 Prerequisites
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- Node.js (v18 or higher)
+- npm or yarn
+- Supabase account
+- Clerk account
+- OpenAI API key
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## 🔧 Installation
 
-Follow these steps:
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd <project-directory>
+```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. **Install dependencies**
+```bash
+npm install
+```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. **Configure environment variables**
 
-# Step 3: Install the necessary dependencies.
-npm i
+Create a `.env` file in the root directory:
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+Update `src/main.tsx` with your Clerk publishable key.
+
+4. **Set up Supabase**
+- Create a new Supabase project
+- Run the migrations from `supabase/migrations`
+- Configure edge function secrets (OpenAI API key)
+
+5. **Deploy Edge Functions**
+```bash
+supabase functions deploy transcribe-audio
+supabase functions deploy generate-clinical-notes
+supabase functions deploy chat-with-summary
+supabase functions deploy convert-to-patient-friendly
+```
+
+## 🚀 Development
+
+Start the development server:
+```bash
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:8080`
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## 🏗️ Project Structure
 
-**Use GitHub Codespaces**
+```
+src/
+├── components/       # Reusable UI components
+├── contexts/        # React context providers
+├── hooks/           # Custom React hooks
+├── integrations/    # Third-party service integrations
+├── lib/             # Utility functions
+├── pages/           # Route components
+└── utils/           # Helper utilities
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+supabase/
+├── functions/       # Edge functions
+└── migrations/      # Database migrations
+```
 
-## What technologies are used for this project?
+## 🔐 Security
 
-This project is built with:
+- All user data is encrypted at rest
+- HTTPS enforced for all connections
+- Row Level Security (RLS) enabled on all Supabase tables
+- Authentication required for sensitive operations
+- API keys stored securely in environment variables
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## 📱 Key Pages
 
-## How can I deploy this project?
+- `/` - Landing page with features overview
+- `/dashboard` - User dashboard with analytics
+- `/new-transcription` - Audio recording interface
+- `/new-summary` - Document upload and summary generation
+- `/patient-portal` - Public patient access to summaries
+- `/settings` - User preferences and account management
 
-Simply open [Lovable](https://lovable.dev/projects/cb8d86d1-de8e-43f9-a05b-3459f4f1b848) and click on Share -> Publish.
+## 🤝 Contributing
 
-## Can I connect a custom domain to my Lovable project?
+This is a private project. For authorized collaborators:
 
-Yes, you can!
+1. Create a feature branch
+2. Make your changes
+3. Submit a pull request
+4. Ensure all tests pass
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📄 License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+All rights reserved. Unauthorized copying or distribution is prohibited.
+
+## 🐛 Known Issues
+
+- Audio recording requires HTTPS or localhost
+- Large audio files may take longer to process
+- Browser compatibility: Chrome, Firefox, Safari (latest versions)
+
+## 📞 Support
+
+For issues or questions, please contact the development team.
+
+---
+
+Built with ❤️ using React, TypeScript, and modern web technologies.
